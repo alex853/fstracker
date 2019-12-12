@@ -14,7 +14,7 @@ repositories {
 }
 
 dependencies {
-    implementation name: 'fsuipc'
+//    implementation name: 'fsuipc'
 
     compile group: 'net.simforge', name: 'simforge-commons', version: '1.0.3'
 
