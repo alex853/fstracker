@@ -75,7 +75,14 @@ public class FSUIPC {
     public String getString(int aOffset, int aLength) {
         byte[] data = new byte[aLength];
         fsuipc_wrapper.ReadData(aOffset, aLength, data);
-        return new String(data);
+        int zeroIndex = data.length;
+        for (int i = 0; i < data.length; i++) {
+            if (data[i] == 0) {
+                zeroIndex = i;
+                break;
+            }
+        }
+        return new String(data, 0, zeroIndex);
     }
 
 }
