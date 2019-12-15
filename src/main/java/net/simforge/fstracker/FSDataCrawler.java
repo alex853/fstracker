@@ -3,14 +3,15 @@ package net.simforge.fstracker;
 import com.flightsim.fsuipc.FSUIPC;
 import com.flightsim.fsuipc.fsuipc_wrapper;
 import net.simforge.commons.misc.Misc;
+import net.simforge.fstracker.fsdata.FSData;
+import net.simforge.fstracker.fsdata.FSDataRecord;
 
-import java.text.DecimalFormat;
 import java.time.LocalDateTime;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class FSDataCrawler {
-    private static final Queue<ReadResult> readingQueue = new ConcurrentLinkedQueue<>();
+    private static final Queue<FSDataRecord> readingQueue = new ConcurrentLinkedQueue<>();
 
     private static volatile boolean stopRequested = false;
 
@@ -37,7 +38,7 @@ public class FSDataCrawler {
 
                         if (ret == 0) {
 //                            System.out.println(LocalDateTime.now() + " Could not connect to SIM");
-                            readingQueue.offer(new ReadResult(ReadStatus.NO_CONNECTION));
+                            readingQueue.offer(new FSDataRecord(FSDataRecord.Status.NO_CONNECTION));
                             fsuipc_wrapper.Close();
                             continue;
                         }
@@ -49,7 +50,7 @@ public class FSDataCrawler {
                     short year = fsuipc.getShort(0x0240);
                     if (year == 0) {
 //                        System.out.println(LocalDateTime.now() + " Year = 0, disconnection is assumed");
-                        readingQueue.offer(new ReadResult(ReadStatus.INVALID_CONNECTION));
+                        readingQueue.offer(new FSDataRecord(FSDataRecord.Status.INVALID_CONNECTION));
                         fsuipc_wrapper.Close();
                         fsuipc = null;
                         connected = false;
@@ -58,25 +59,25 @@ public class FSDataCrawler {
 
                     long startTs = System.currentTimeMillis();
 
-                    FSDataRecord fsDataRecord = readFSDataRecord();
+                    FSData fsDataRecord = readFSDataRecord();
 
                     long elapsedTs = System.currentTimeMillis() - startTs;
 
                     if (elapsedTs > 500) {
 //                        System.out.println(LocalDateTime.now() + " READING IS TOO SLOW, disconnection is assumed");
-                        readingQueue.offer(new ReadResult(ReadStatus.READ_TIMEOUT, fsDataRecord));
+                        readingQueue.offer(new FSDataRecord(FSDataRecord.Status.READ_TIMEOUT, fsDataRecord));
                         fsuipc_wrapper.Close();
                         fsuipc = null;
                         connected = false;
                         continue;
                     }
 
-                    readingQueue.offer(new ReadResult(ReadStatus.OK, fsDataRecord));
+                    readingQueue.offer(new FSDataRecord(FSDataRecord.Status.OK, fsDataRecord));
                 }
             }
 
-            private FSDataRecord readFSDataRecord() {
-                FSDataRecord fsDataRecord = new FSDataRecord();
+            private FSData readFSDataRecord() {
+                FSData fsDataRecord = new FSData();
 
                 fsDataRecord.setLocalDateTime(LocalDateTime.now());
                 LocalDateTime fsLocalDateTime = LocalDateTime.of(
@@ -122,40 +123,15 @@ public class FSDataCrawler {
         while (true) {
 
             while (true) {
-                ReadResult readResult = readingQueue.poll();
-                if (readResult == null)
+                FSDataRecord record = readingQueue.poll();
+                if (record == null)
                     break;
 
-                System.out.println(readResult.getStatus() + "    " + (readResult.getFsDataRecord() != null ? readResult.getFsDataRecord().toString() : "NO DATA"));
+                System.out.println(record.getDateTime() + "    " + record.getStatus() + "    " + (record.getFsData() != null ? record.getFsData().toString() : "NO DATA"));
             }
 
             Thread.sleep(100);
 
         }
     }
-
-    private static class ReadResult {
-        private ReadStatus status;
-        private FSDataRecord fsDataRecord;
-
-        public ReadResult(ReadStatus status) {
-            this.status = status;
-        }
-
-        public ReadResult(ReadStatus status, FSDataRecord fsDataRecord) {
-            this.status = status;
-            this.fsDataRecord = fsDataRecord;
-        }
-
-        public ReadStatus getStatus() {
-            return status;
-        }
-
-        public FSDataRecord getFsDataRecord() {
-            return fsDataRecord;
-        }
-    }
-
-    private enum ReadStatus { NO_CONNECTION, INVALID_CONNECTION, READ_TIMEOUT, OK }
-
 }

@@ -1,9 +1,9 @@
-package net.simforge.fstracker;
+package net.simforge.fstracker.fsdata;
 
 import java.text.DecimalFormat;
 import java.time.LocalDateTime;
 
-public class FSDataRecord {
+public class FSData {
     private LocalDateTime localDateTime;
     private LocalDateTime fsZuluDateTime;
 
