@@ -4,7 +4,6 @@ import java.text.DecimalFormat;
 import java.time.LocalDateTime;
 
 public class FSData {
-    private LocalDateTime localDateTime;
     private LocalDateTime fsZuluDateTime;
 
     private boolean slewMode;
@@ -27,14 +26,6 @@ public class FSData {
     private String atcAirlineName;
     private String atcAircraftType;
     private String atcModel;
-
-    public LocalDateTime getLocalDateTime() {
-        return localDateTime;
-    }
-
-    public void setLocalDateTime(LocalDateTime localDateTime) {
-        this.localDateTime = localDateTime;
-    }
 
     public LocalDateTime getFsZuluDateTime() {
         return fsZuluDateTime;

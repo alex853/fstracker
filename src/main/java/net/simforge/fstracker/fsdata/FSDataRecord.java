@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 
 public class FSDataRecord {
-    public enum Status { NO_CONNECTION, INVALID_CONNECTION, READ_TIMEOUT, OK }
+    public enum Status {NO_CX, BAD_CX, READ_TIMEOUT, OK }
 
     private LocalDateTime dateTime;
     private Status status;
