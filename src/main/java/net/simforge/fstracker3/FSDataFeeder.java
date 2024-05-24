@@ -11,7 +11,7 @@ import net.simforge.commons.misc.Str;
 import java.io.IOException;
 import java.text.DecimalFormat;
 
-public class FSDataFeeder implements EventHandler, OpenHandler, QuitHandler, SimObjectDataTypeHandler {
+public class FSDataFeeder implements EventHandler, OpenHandler, QuitHandler, SimObjectDataTypeHandler, SystemStateHandler, ExceptionHandler {
     private static final int DEFINITION_0 = 0;
     private static final int DEFINITION_1 = 1;
 
@@ -22,7 +22,9 @@ public class FSDataFeeder implements EventHandler, OpenHandler, QuitHandler, Sim
 
     private SimState currentSimState;
 
-    private TrackWriter trackWriter = new TrackWriter();
+    private final TrackWriter trackWriter = new TrackWriter();
+
+    private boolean simQuit = false;
 
     public void connectAndRunCollectionCycle() throws IOException, ConfigurationNotFoundException, InterruptedException {
         SimConnect sc = new SimConnect("FSDataFeeder", 0);
@@ -51,15 +53,18 @@ public class FSDataFeeder implements EventHandler, OpenHandler, QuitHandler, Sim
         dt.addQuitHandler(this);
         dt.addEventHandler(this);
         dt.addSimObjectDataTypeHandler(this);
+        dt.addSystemStateHandler(this);
+        dt.addExceptionHandler(this);
 
         Thread thread = dt.createThread();
         thread.start();
 
         try {
-            while (true) {
+            while (!simQuit) {
                 Thread.sleep(1000);
             }
         } finally {
+            trackWriter.close();
             dt.tryStop();
         }
     }
@@ -72,6 +77,7 @@ public class FSDataFeeder implements EventHandler, OpenHandler, QuitHandler, Sim
     }
 
     public void handleQuit(SimConnect sender, RecvQuit e) {
+        simQuit = true;
         clearLine();
         System.out.println("Disconnected from : " + e.toString());
     }
@@ -105,14 +111,28 @@ public class FSDataFeeder implements EventHandler, OpenHandler, QuitHandler, Sim
 
             currentSimState = state;
 
-            try {
-                trackWriter.append(currentSimState);
-            } catch (IOException ex) {
-                throw new RuntimeException(ex);
+            boolean outsideSimulation = Geo.distance(Geo.coords(state.getLatitude(), state.getLongitude()), Geo.coords(0, 0)) < 1;
+
+            if (!outsideSimulation) {
+                try {
+                    trackWriter.append(currentSimState);
+                } catch (IOException ex) {
+                    throw new RuntimeException(ex);
+                }
             }
         }
 
         printState();
+    }
+
+    @Override
+    public void handleSystemState(SimConnect simConnect, RecvSystemState recvSystemState) {
+        System.out.println("recvSystemState { " + recvSystemState.getRequestID() + ", " + recvSystemState.getDataInteger() + ", " + recvSystemState.getDataFloat() + ", " + recvSystemState.getDataString() + " }");
+    }
+
+    @Override
+    public void handleException(SimConnect simConnect, RecvException e) {
+        System.out.println("recvException = " + e + ", " + e.getException());
     }
 
     private void printState() {

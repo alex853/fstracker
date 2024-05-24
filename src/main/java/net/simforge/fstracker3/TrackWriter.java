@@ -1,6 +1,7 @@
 package net.simforge.fstracker3;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import net.simforge.commons.io.IOHelper;
@@ -8,6 +9,7 @@ import net.simforge.commons.misc.JavaTime;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.DecimalFormat;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.LinkedList;
@@ -15,6 +17,10 @@ import java.util.LinkedList;
 import static net.simforge.fstracker3.TrackEntryInfo.Field.*;
 
 public class TrackWriter {
+    private static final DecimalFormat d1 = new DecimalFormat("0.0");
+    private static final DecimalFormat d3 = new DecimalFormat("0.0##");
+    private static final DecimalFormat d6 = new DecimalFormat("0.0#####");
+
     private String partitionFileName;
     private final LinkedList<TrackEntryInfo> partitionData = new LinkedList<>();
 
@@ -43,7 +49,7 @@ public class TrackWriter {
     }
 
     private void writePartitionData() throws IOException {
-        final Gson gson = new Gson();
+        final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
         final JsonObject jsonObject = new JsonObject();
         jsonObject.addProperty("version", "1");
@@ -57,11 +63,11 @@ public class TrackWriter {
         partitionData.forEach(entry -> trackDataArray.add(
                 entry.getTimestamp() + ";" +
                 entry.getTitle() + ";" +
-                entry.getLatitude() + ";" +
-                entry.getLongitude() + ";" +
-                entry.getAltitude() + ";" +
+                d6.format(entry.getLatitude()) + ";" +
+                d6.format(entry.getLongitude()) + ";" +
+                d1.format(entry.getAltitude()) + ";" +
                 entry.getOnGround() + ";" +
-                entry.getGroundspeed() + ";" +
+                d3.format(entry.getGroundspeed()) + ";" +
                 entry.getParkingBrake()));
 
         final JsonObject trackObject = new JsonObject();
@@ -71,13 +77,19 @@ public class TrackWriter {
         final String json = gson.toJson(jsonObject);
 
         final File file = new File(partitionFileName);
+        //noinspection ResultOfMethodCallIgnored
         file.getParentFile().mkdirs();
         IOHelper.saveFile(file, json);
     }
 
+    private void cleanState() {
+        partitionFileName = null;
+        partitionData.clear();
+    }
+
     private void startNewPartition() {
         final LocalDateTime now = JavaTime.nowUtc();
-        partitionFileName = String.format("Segments/%s/track/track_%s.txt",
+        partitionFileName = String.format("Segments/%s/track/track_%s.json",
                 JavaTime.yMd.format(now).replace(':', '-').replace(' ', '_'),
                 JavaTime.yMdHms.format(now).replace(':', '-').replace(' ', '_'));
         partitionData.clear();
@@ -89,5 +101,14 @@ public class TrackWriter {
 
     private boolean isPartitionNotInitialized() {
         return partitionFileName == null;
+    }
+
+    public void close() throws IOException {
+        if (isPartitionNotInitialized()) {
+            return;
+        }
+
+        writePartitionData();
+        cleanState();
     }
 }
