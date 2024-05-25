@@ -29,7 +29,7 @@ public class TrackWriter {
     private final LinkedList<TrackEntryInfo> partitionData = new LinkedList<>();
     private long lastWriteTs;
 
-    public void append(final SimState simState) throws IOException {
+    public synchronized void append(final SimState simState) throws IOException {
         if (isPartitionFull() || isPartitionNotInitialized()) {
             writePartitionData();
             startNewPartition();
@@ -131,7 +131,7 @@ public class TrackWriter {
         return partitionFileName == null;
     }
 
-    public void close() throws IOException {
+    public synchronized void close() throws IOException {
         if (isPartitionNotInitialized()) {
             return;
         }
