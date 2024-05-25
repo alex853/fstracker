@@ -8,7 +8,7 @@ version '1.0-SNAPSHOT'
 apply plugin: 'java'
 
 application {
-    mainClassName = "net.simforge.fstracker2.FSTracker2"
+    mainClassName = "net.simforge.FSTracker"
 }
 
 repositories {
@@ -28,6 +28,11 @@ dependencies {
     implementation 'net.simforge:simforge-commons:latest.release'
     implementation 'net.simforge:refdata-airports:latest.release'
     implementation 'org.projectlombok:lombok:1.18.22'
+
+    implementation 'org.slf4j:slf4j-api:1.7.21'
+    implementation 'ch.qos.logback:logback-core:1.1.7'
+    implementation 'ch.qos.logback:logback-classic:1.1.7'
+
     annotationProcessor 'org.projectlombok:lombok:1.18.22'
 
     implementation files('lib/jsimconnect.jar')

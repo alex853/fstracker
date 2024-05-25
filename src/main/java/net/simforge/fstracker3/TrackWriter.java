@@ -6,6 +6,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import net.simforge.commons.io.IOHelper;
 import net.simforge.commons.misc.JavaTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -17,20 +19,27 @@ import java.util.LinkedList;
 import static net.simforge.fstracker3.TrackEntryInfo.Field.*;
 
 public class TrackWriter {
+    private static final Logger log = LoggerFactory.getLogger(TrackWriter.class);
+
     private static final DecimalFormat d1 = new DecimalFormat("0.0");
     private static final DecimalFormat d3 = new DecimalFormat("0.0##");
     private static final DecimalFormat d6 = new DecimalFormat("0.0#####");
 
     private String partitionFileName;
     private final LinkedList<TrackEntryInfo> partitionData = new LinkedList<>();
+    private long lastWriteTs;
 
     public void append(final SimState simState) throws IOException {
         if (isPartitionFull() || isPartitionNotInitialized()) {
+            writePartitionData();
             startNewPartition();
         }
 
         partitionData.add(toTrackEntryInfo(simState));
-        writePartitionData();
+
+        if (isTimeToWritePartitionData()) {
+            writePartitionData();
+        }
     }
 
     private TrackEntryInfo toTrackEntryInfo(final SimState simState) {
@@ -49,6 +58,10 @@ public class TrackWriter {
     }
 
     private void writePartitionData() throws IOException {
+        if (partitionData.isEmpty()) {
+            return;
+        }
+
         final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
         final JsonObject jsonObject = new JsonObject();
@@ -80,11 +93,16 @@ public class TrackWriter {
         //noinspection ResultOfMethodCallIgnored
         file.getParentFile().mkdirs();
         IOHelper.saveFile(file, json);
+
+        lastWriteTs = System.currentTimeMillis();
+        log.trace("Partition data with {} positions saved", trackDataArray.size());
     }
 
     private void cleanState() {
         partitionFileName = null;
         partitionData.clear();
+        lastWriteTs = 0;
+        log.trace("Partition data cleaned up");
     }
 
     private void startNewPartition() {
@@ -93,6 +111,12 @@ public class TrackWriter {
                 JavaTime.yMd.format(now).replace(':', '-').replace(' ', '_'),
                 JavaTime.yMdHms.format(now).replace(':', '-').replace(' ', '_'));
         partitionData.clear();
+        lastWriteTs = 0;
+        log.trace("New partition {} started", partitionFileName);
+    }
+
+    private boolean isTimeToWritePartitionData() {
+        return (System.currentTimeMillis() - lastWriteTs) >= 30000;
     }
 
     private boolean isPartitionFull() {

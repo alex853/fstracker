@@ -7,11 +7,15 @@ import flightsim.simconnect.config.ConfigurationNotFoundException;
 import flightsim.simconnect.recv.*;
 import net.simforge.commons.misc.Geo;
 import net.simforge.commons.misc.Str;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.text.DecimalFormat;
 
 public class FSDataFeeder implements EventHandler, OpenHandler, QuitHandler, SimObjectDataTypeHandler, SystemStateHandler, ExceptionHandler {
+    private static final Logger log = LoggerFactory.getLogger(FSDataFeeder.class);
+
     private static final int DEFINITION_0 = 0;
     private static final int DEFINITION_1 = 1;
 
@@ -61,6 +65,7 @@ public class FSDataFeeder implements EventHandler, OpenHandler, QuitHandler, Sim
 
         try {
             while (!simQuit) {
+                //noinspection BusyWait
                 Thread.sleep(1000);
             }
         } finally {
@@ -70,33 +75,31 @@ public class FSDataFeeder implements EventHandler, OpenHandler, QuitHandler, Sim
     }
 
     public void handleOpen(SimConnect sender, RecvOpen e) {
-        clearLine();
-        System.out.println("Connected to : " + e.getApplicationName() + " "
+        log.warn("Connected to : " + e.getApplicationName() + " "
                 + e.getApplicationVersionMajor() + "."
                 + e.getApplicationVersionMinor());
     }
 
     public void handleQuit(SimConnect sender, RecvQuit e) {
         simQuit = true;
-        clearLine();
-        System.out.println("Disconnected from : " + e.toString());
+        log.warn("Disconnected from : " + e.toString());
     }
 
     public void handleEvent(SimConnect sender, RecvEvent e) {
-
         // Now the sim is running, request information on the user aircraft
         try {
             sender.requestDataOnSimObjectType(REQUEST_1, DEFINITION_1, 0, SimObjectType.USER);
-        } catch (IOException e1) {
-            e1.printStackTrace();
+        } catch (final IOException ex) {
+            log.error("Error while reading", ex);
         }
     }
 
     public void handleSimObjectType(SimConnect sender, RecvSimObjectDataByType e) {
         if (e.getRequestID() == REQUEST_1) {
+            final SimState state = new SimState();
+            //noinspection unused
+            final int objectId = e.getObjectID();
 
-            SimState state = new SimState();
-            int objectId = e.getObjectID();
             state.setTitle(e.getDataString256());
             state.setAtcType(e.getDataString256());
             state.setAtcModel(e.getDataString256());
@@ -127,17 +130,16 @@ public class FSDataFeeder implements EventHandler, OpenHandler, QuitHandler, Sim
 
     @Override
     public void handleSystemState(SimConnect simConnect, RecvSystemState recvSystemState) {
-        System.out.println("recvSystemState { " + recvSystemState.getRequestID() + ", " + recvSystemState.getDataInteger() + ", " + recvSystemState.getDataFloat() + ", " + recvSystemState.getDataString() + " }");
+        log.trace("recvSystemState { " + recvSystemState.getRequestID() + ", " + recvSystemState.getDataInteger() + ", " + recvSystemState.getDataFloat() + ", " + recvSystemState.getDataString() + " }");
     }
 
     @Override
     public void handleException(SimConnect simConnect, RecvException e) {
-        System.out.println("recvException = " + e + ", " + e.getException());
+        log.trace("recvException = " + e + ", " + e.getException());
     }
 
     private void printState() {
-        clearLine();
-        System.out.printf("    | %s : GND %s    Lat %s    Lon %s    DIR-TO-ZERO %s    G/S %s U/S %s P/S %s P/P %s  STATIONARY %s",
+        log.info(String.format("    | %s : GND %s    Lat %s    Lon %s    DIR-TO-ZERO %s    G/S %s U/S %s P/S %s P/P %s  STATIONARY %s",
                 Str.limit(currentSimState.getTitle(), 12) + "...",
                 currentSimState.getOnGround(),
                 coordFormat.format(currentSimState.getLatitude()),
@@ -147,11 +149,6 @@ public class FSDataFeeder implements EventHandler, OpenHandler, QuitHandler, Sim
                 currentSimState.getIsUserSim(),
                 currentSimState.getPlaneInParkingState(),
                 currentSimState.getBrakeParkingPosition(),
-                currentSimState.isStationary());
-    }
-
-    private void clearLine() {
-        System.out.print("                                                                                                                                       ");
-        System.out.print("\r");
+                currentSimState.isStationary()));
     }
 }
