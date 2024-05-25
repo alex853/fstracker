@@ -15,6 +15,7 @@ public class SimState {
     private int isUserSim;
     private int planeInParkingState;
     private int brakeParkingPosition; //
+    private int engineCombustion1;
 
     public boolean isOnGround() {
         return onGround == 1;

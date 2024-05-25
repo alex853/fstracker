@@ -54,6 +54,10 @@ public class TrackEntryInfo {
         return (int) fields.get(Field.parking_brake);
     }
 
+    public int getEngineRunning() {
+        return (int) fields.get(Field.engine_running);
+    }
+
     public enum Field {
         timestamp("ts"), // simconnect:Title
         title("title"), // simconnect:Title
@@ -62,7 +66,8 @@ public class TrackEntryInfo {
         altitude("alt"), // simconnect:Plane Altitude
         on_ground("on_ground"), // simconnect:Sim On Ground
         groundspeed("groundspeed"), // simconnect:Ground Velocity
-        parking_brake("parking_brake"); // simconnect:Brake Parking Position
+        parking_brake("parking_brake"), // simconnect:Brake Parking Position
+        engine_running("engine_running"); // simconnect:Eng Combustion:1
 
         private final String code;
 

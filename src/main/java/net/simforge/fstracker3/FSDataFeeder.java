@@ -45,6 +45,7 @@ public class FSDataFeeder implements EventHandler, OpenHandler, QuitHandler, Sim
         sc.addToDataDefinition(DEFINITION_1, "Is User Sim", null, SimConnectDataType.INT32);
         sc.addToDataDefinition(DEFINITION_1, "Plane In Parking State", null, SimConnectDataType.INT32);
         sc.addToDataDefinition(DEFINITION_1, "Brake Parking Position", null, SimConnectDataType.INT32);
+        sc.addToDataDefinition(DEFINITION_1, "Eng Combustion:1", null, SimConnectDataType.INT32);
 
         // Request an event when the simulation starts
         sc.subscribeToSystemEvent(DEFINITION_0, "SimStart");
@@ -111,6 +112,7 @@ public class FSDataFeeder implements EventHandler, OpenHandler, QuitHandler, Sim
             state.setIsUserSim(e.getDataInt32());
             state.setPlaneInParkingState(e.getDataInt32());
             state.setBrakeParkingPosition(e.getDataInt32());
+            state.setEngineCombustion1(e.getDataInt32());
 
             currentSimState = state;
 
@@ -139,7 +141,7 @@ public class FSDataFeeder implements EventHandler, OpenHandler, QuitHandler, Sim
     }
 
     private void printState() {
-        log.info(String.format("    | %s : GND %s    Lat %s    Lon %s    DIR-TO-ZERO %s    G/S %s U/S %s P/S %s P/P %s  STATIONARY %s",
+        log.info(String.format("    | %s : GND %s    Lat %s    Lon %s    DIR-TO-ZERO %s    G/S %s U/S %s P/S %s P/P %s  STATIONARY %s ENG1 %s",
                 Str.limit(currentSimState.getTitle(), 12) + "...",
                 currentSimState.getOnGround(),
                 coordFormat.format(currentSimState.getLatitude()),
@@ -149,6 +151,7 @@ public class FSDataFeeder implements EventHandler, OpenHandler, QuitHandler, Sim
                 currentSimState.getIsUserSim(),
                 currentSimState.getPlaneInParkingState(),
                 currentSimState.getBrakeParkingPosition(),
-                currentSimState.isStationary()));
+                currentSimState.isStationary(),
+                currentSimState.getEngineCombustion1()));
     }
 }

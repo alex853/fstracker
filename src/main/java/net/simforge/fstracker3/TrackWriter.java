@@ -53,6 +53,7 @@ public class TrackWriter {
         trackInfo.put(on_ground, simState.getOnGround());
         trackInfo.put(groundspeed, simState.getGroundVelocity());
         trackInfo.put(parking_brake, simState.getBrakeParkingPosition());
+        trackInfo.put(engine_running, simState.getEngineCombustion1());
 
         return trackInfo;
     }
@@ -81,10 +82,13 @@ public class TrackWriter {
                 d1.format(entry.getAltitude()) + ";" +
                 entry.getOnGround() + ";" +
                 d3.format(entry.getGroundspeed()) + ";" +
-                entry.getParkingBrake()));
+                entry.getParkingBrake() + ";" +
+                entry.getEngineRunning()));
 
         final JsonObject trackObject = new JsonObject();
+        trackObject.addProperty("fields", "ts;title;lat;lon;alt;on_ground;groundspeed;parking_brake;engine_running");
         trackObject.add("data", trackDataArray);
+
         jsonObject.add("track", trackObject);
 
         final String json = gson.toJson(jsonObject);
