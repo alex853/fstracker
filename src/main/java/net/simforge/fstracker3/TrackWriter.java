@@ -66,7 +66,7 @@ public class TrackWriter {
         final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
         final JsonObject jsonObject = new JsonObject();
-        jsonObject.addProperty("version", "1");
+        jsonObject.addProperty("version", 1);
 
         final JsonObject rangeObject = new JsonObject();
         rangeObject.addProperty("from", partitionData.getFirst().getTimestamp());
