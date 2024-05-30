@@ -22,6 +22,10 @@ public class TrackEntryInfo {
         fields.put(field, value);
     }
 
+    public boolean has(final Field field) {
+        return fields.containsKey(field);
+    }
+
     public long getTimestamp() {
         return (long) fields.get(Field.timestamp);
     }
