@@ -95,12 +95,17 @@ public class TrackAnalyzer1 {
                 if (events.isEmpty()) {
                     segment = segment.plusStep(1000, distanceChange);
                 } else {
-                    printWithAirport(each, events, segment);
-                    segment = segment.zero();
+                    printSegment(segment);
+                    printWithAirport(each, events);
+                    segment = SegmentInfo.zero();
                 }
             } finally {
                 prev = each;
             }
+        }
+
+        if (!segment.isZero()) {
+            printSegment(segment);
         }
     }
 
@@ -109,13 +114,16 @@ public class TrackAnalyzer1 {
         System.out.println(ts + " " + event);
     }
 
-    private static void printWithAirport(final TrackEntryInfo info, final List<String> events, final SegmentInfo segmentInfo) {
+    private static void printWithAirport(final TrackEntryInfo info, final List<String> events) {
         final LocalDateTime ts = LocalDateTime.ofEpochSecond(info.getTimestamp(), 0, ZoneOffset.UTC);
         final Airport airport = Airports.get().findWithinBoundary(Geo.coords(info.getLatitude(), info.getLongitude()));
-        System.out.println("                               Segment data - " + segmentInfo);
         System.out.println(ts
                 + " " + Str.al(airport != null ? airport.getIcao() : "n/a", 4)
                 + " " + events);
+    }
+
+    private static void printSegment(final SegmentInfo segmentInfo) {
+        System.out.println("                               Segment data - " + segmentInfo);
     }
 
     private static class SegmentInfo {
@@ -138,6 +146,10 @@ public class TrackAnalyzer1 {
 
         public SegmentInfo plusStep(final int timeChange, final double distanceChange) {
             return new SegmentInfo(this.time + timeChange, this.distance + distanceChange);
+        }
+
+        public boolean isZero() {
+            return time == 0 && distance == 0;
         }
     }
 }
