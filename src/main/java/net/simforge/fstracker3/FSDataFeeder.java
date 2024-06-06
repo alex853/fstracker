@@ -116,14 +116,10 @@ public class FSDataFeeder implements EventHandler, OpenHandler, QuitHandler, Sim
 
             currentSimState = state;
 
-            boolean outsideSimulation = Geo.distance(Geo.coords(state.getLatitude(), state.getLongitude()), Geo.coords(0, 0)) < 1;
-
-            if (!outsideSimulation) {
-                try {
-                    trackWriter.append(currentSimState);
-                } catch (IOException ex) {
-                    throw new RuntimeException(ex);
-                }
+            try {
+                trackWriter.append(currentSimState);
+            } catch (IOException ex) {
+                log.error("Unable to write track data", ex);
             }
         }
 

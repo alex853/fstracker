@@ -52,7 +52,26 @@ public class TrackAnalyzer1 {
                     continue;
                 }
 
-                // boolean outsideSimulation = todo;
+                if (isOutsideSimulation(each) != isOutsideSimulation(prev)) {
+                    if (isOutsideSimulation(each)) {
+                        print(each, "Simulation OUT");
+
+                        printSegment(segment);
+                        printWithAirport(each, new ArrayList<>());
+                        segment = SegmentInfo.zero();
+
+                        continue;
+                    } else {
+                        print(each, "Simulation IN");
+
+                        segment = SegmentInfo.zero();
+
+                        continue;
+                    }
+                } else if (isOutsideSimulation(each)) {
+                    continue;
+                }
+
                 final List<String> events = new ArrayList<>();
 
                 if (prev.has(engine_running) && each.has(engine_running)) {
@@ -107,6 +126,10 @@ public class TrackAnalyzer1 {
         if (!segment.isZero()) {
             printSegment(segment);
         }
+    }
+
+    private static boolean isOutsideSimulation(TrackEntryInfo each) {
+        return Geo.distance(Geo.coords(each.getLatitude(), each.getLongitude()), Geo.coords(0, 0)) < 1;
     }
 
     private static void print(final TrackEntryInfo info, final String event) {
