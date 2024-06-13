@@ -41,17 +41,6 @@ public class TrackAnalyzer1 {
                     continue;
                 }
 
-                double distanceChange = Geo.distance(
-                        Geo.coords(each.getLatitude(), each.getLongitude()),
-                        Geo.coords(prev.getLatitude(), prev.getLongitude()));
-                boolean jump = distanceChange > 4000.0 / 3600.0; // it is based on 1 second step
-                if (jump) {
-                    print(prev, "Jump FROM");
-                    print(each, "Jump TO");
-                    segment = SegmentInfo.zero();
-                    continue;
-                }
-
                 if (isOutsideSimulation(each) != isOutsideSimulation(prev)) {
                     if (isOutsideSimulation(each)) {
                         print(each, "Simulation OUT");
@@ -69,6 +58,17 @@ public class TrackAnalyzer1 {
                         continue;
                     }
                 } else if (isOutsideSimulation(each)) {
+                    continue;
+                }
+
+                double distanceChange = Geo.distance(
+                        Geo.coords(each.getLatitude(), each.getLongitude()),
+                        Geo.coords(prev.getLatitude(), prev.getLongitude()));
+                boolean jump = distanceChange > 4000.0 / 3600.0; // it is based on 1 second step
+                if (jump) {
+                    print(prev, "Jump FROM");
+                    print(each, "Jump TO");
+                    segment = SegmentInfo.zero();
                     continue;
                 }
 
