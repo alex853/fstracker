@@ -1,5 +1,7 @@
 package net.simforge.fstracker3;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -28,6 +30,10 @@ public class TrackEntryInfo {
 
     public long getTimestamp() {
         return (long) fields.get(Field.timestamp);
+    }
+
+    public LocalDateTime getDateTime() {
+        return LocalDateTime.ofEpochSecond(getTimestamp(), 0, ZoneOffset.UTC);
     }
 
     public String getTitle() {
