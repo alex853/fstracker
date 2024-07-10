@@ -30,13 +30,13 @@ public class TrackReader {
         this.toDate = toDate;
     }
 
-    public List<TrackEntryInfo> readTrackData() throws IOException {
+    public List<TrackEntry> readTrackData() throws IOException {
         final List<TrackStorage.FileInfo> files = TrackStorage.listFiles();
 
         final TrackStorage.FileInfo fromFile = files.get(0);
         final TrackStorage.FileInfo toFile = files.get(files.size() - 1);
 
-        final List<TrackEntryInfo> result = new ArrayList<>();
+        final List<TrackEntry> result = new ArrayList<>();
 
         for (int i = files.indexOf(fromFile); i <= files.indexOf(toFile); i++) {
             final TrackStorage.FileInfo trackFileInfo = files.get(i);
@@ -46,7 +46,7 @@ public class TrackReader {
         return result;
     }
 
-    private List<TrackEntryInfo> readTrackData(final TrackStorage.FileInfo trackFileInfo) throws IOException {
+    private List<TrackEntry> readTrackData(final TrackStorage.FileInfo trackFileInfo) throws IOException {
         final File file = trackFileInfo.getFile();
         final String content = IOHelper.loadFile(file);
         final Gson gson = new Gson();
@@ -60,23 +60,23 @@ public class TrackReader {
         final JsonObject trackObject = jsonObject.getAsJsonObject("track");
         final JsonArray trackDataArray = trackObject.getAsJsonArray("data");
 
-        final List<TrackEntryInfo> result = new ArrayList<>();
+        final List<TrackEntry> result = new ArrayList<>();
 
         for (int i = 0; i < trackDataArray.size(); i++) {
             final String row = trackDataArray.get(i).getAsString();
             final String[] values = row.split(";");
 
-            final TrackEntryInfo entry = new TrackEntryInfo();
-            entry.put(TrackEntryInfo.Field.timestamp, Long.parseLong(values[0]));
-            entry.put(TrackEntryInfo.Field.title, values[1]);
-            entry.put(TrackEntryInfo.Field.latitude, Double.parseDouble(values[2]));
-            entry.put(TrackEntryInfo.Field.longitude, Double.parseDouble(values[3]));
-            entry.put(TrackEntryInfo.Field.altitude, Double.parseDouble(values[4]));
-            entry.put(TrackEntryInfo.Field.on_ground, Integer.parseInt(values[5]));
-            entry.put(TrackEntryInfo.Field.groundspeed, Double.parseDouble(values[6]));
-            entry.put(TrackEntryInfo.Field.parking_brake, Integer.parseInt(values[7]));
+            final TrackEntry entry = new TrackEntry();
+            entry.put(TrackEntry.Field.timestamp, Long.parseLong(values[0]));
+            entry.put(TrackEntry.Field.title, values[1]);
+            entry.put(TrackEntry.Field.latitude, Double.parseDouble(values[2]));
+            entry.put(TrackEntry.Field.longitude, Double.parseDouble(values[3]));
+            entry.put(TrackEntry.Field.altitude, Double.parseDouble(values[4]));
+            entry.put(TrackEntry.Field.on_ground, Integer.parseInt(values[5]));
+            entry.put(TrackEntry.Field.groundspeed, Double.parseDouble(values[6]));
+            entry.put(TrackEntry.Field.parking_brake, Integer.parseInt(values[7]));
             if (values.length > 8) {
-                entry.put(TrackEntryInfo.Field.engine_running, Integer.parseInt(values[8]));
+                entry.put(TrackEntry.Field.engine_running, Integer.parseInt(values[8]));
             }
 
             result.add(entry);

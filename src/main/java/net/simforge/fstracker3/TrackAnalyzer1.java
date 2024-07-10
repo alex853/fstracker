@@ -18,29 +18,34 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
-import static net.simforge.fstracker3.TrackEntryInfo.Field.engine_running;
+import static net.simforge.fstracker3.TrackEntry.Field.engine_running;
 
 public class TrackAnalyzer1 {
     private static final DecimalFormat d1 = new DecimalFormat("0.0");
 
-    public static List<TrackEntryInfo> loadTrackDataAll() throws IOException {
+    public static List<TrackEntry> loadTrackDataAll() throws IOException {
         final TrackReader reader = TrackReader.buildForAll();
         return reader.readTrackData();
     }
 
-    public static List<TrackEntryInfo> loadTrackDataAfter(final LocalDateTime threshold) throws IOException {
+    public static List<TrackEntry> loadTrackDataAfter(final LocalDateTime threshold) throws IOException {
         final TrackReader reader = TrackReader.buildForAll();
         return reader.readTrackData().stream()
                 .filter(t -> t.getDateTime().isAfter(threshold))
-                .toList();
+                .collect(Collectors.toList());
     }
 
-    public static List<SegmentInfo> convertTrackDataToSegments(List<TrackEntryInfo> trackData) {
-        TrackEntryInfo prev = null;
+    public static List<SegmentInfo> convertTrackDataToSegments(final List<TrackEntry> trackData) {
+        return convertTrackDataToSegments(trackData, true);
+    }
+
+    public static List<SegmentInfo> convertTrackDataToSegments(final List<TrackEntry> trackData, final boolean verbose) {
+        TrackEntry prev = null;
         SegmentInfo segment = null;
         final List<SegmentInfo> segments = new ArrayList<>();
-        for (TrackEntryInfo each : trackData) {
+        for (TrackEntry each : trackData) {
             try {
                 if (prev == null) {
                     segment = SegmentInfo.zero().addStartEvent("Track START").setStartPosition(each);
@@ -50,27 +55,27 @@ public class TrackAnalyzer1 {
                 long timeDelta = each.getTimestamp() - prev.getTimestamp();
                 boolean timeStepTooBig = timeDelta > 10000;
                 if (timeStepTooBig) {
-                    print(prev, "Time gap FROM");
+                    if (verbose) print(prev, "Time gap FROM");
                     segments.add(segment.addFinishEvent("Time gap FROM").setFinishPosition(prev));
 
-                    print(each, "Time gap TO");
+                    if (verbose) print(each, "Time gap TO");
                     segment = SegmentInfo.zero().addStartEvent("Time gap TO").setStartPosition(each);
                     continue;
                 }
 
                 if (isOutsideSimulation(each) != isOutsideSimulation(prev)) {
                     if (isOutsideSimulation(each)) {
-                        print(each, "Simulation OUT");
+                        if (verbose) print(each, "Simulation OUT");
                         segments.add(segment.addFinishEvent("Simulation OUT").setFinishPosition(prev));
-                        printSegment(segment);
+                        if (verbose) printSegment(segment);
 
-                        printWithAirport(each, Collections.emptySet());
+                        if (verbose) printWithAirport(each, Collections.emptySet());
 
                         segment = SegmentInfo.zero().addStartEvent("Simulation OUT").setStartPosition(each);
 
                         continue;
                     } else {
-                        print(each, "Simulation IN");
+                        if (verbose) print(each, "Simulation IN");
                         segments.add(segment.addFinishEvent("Simulation IN").setFinishPosition(prev));
 
                         segment = SegmentInfo.zero().addStartEvent("Simulation IN").setStartPosition(each);
@@ -86,10 +91,10 @@ public class TrackAnalyzer1 {
                         Geo.coords(prev.getLatitude(), prev.getLongitude()));
                 boolean jump = distanceChange > 4000.0 / 3600.0; // it is based on 1 second step
                 if (jump) {
-                    print(prev, "Jump FROM");
+                    if (verbose) print(prev, "Jump FROM");
                     segments.add(segment.addFinishEvent("Jump FROM").setFinishPosition(prev));
 
-                    print(each, "Jump TO");
+                    if (verbose) print(each, "Jump TO");
                     segment = SegmentInfo.zero().addStartEvent("Jump TO").setStartPosition(each);
 
                     continue;
@@ -137,10 +142,10 @@ public class TrackAnalyzer1 {
                 if (events.isEmpty()) {
                     segment = segment.plusStep(1000, distanceChange);
                 } else {
-                    printSegment(segment);
+                    if (verbose) printSegment(segment);
                     segments.add(segment.addFinishEvents(events).setFinishPosition(each));
 
-                    printWithAirport(each, events);
+                    if (verbose) printWithAirport(each, events);
                     segment = SegmentInfo.zero().addStartEvents(events).setStartPosition(each);
                 }
             } finally {
@@ -149,7 +154,7 @@ public class TrackAnalyzer1 {
         }
 
         if (!segment.isZero()) {
-            printSegment(segment);
+            if (verbose) printSegment(segment);
             segments.add(segment.addFinishEvent("Track END"));
         }
         return segments;
@@ -277,16 +282,16 @@ public class TrackAnalyzer1 {
         return reversed.stream().filter(predicate).findFirst();
     }
 
-    private static boolean isOutsideSimulation(TrackEntryInfo each) {
+    private static boolean isOutsideSimulation(TrackEntry each) {
         return Geo.distance(Geo.coords(each.getLatitude(), each.getLongitude()), Geo.coords(0, 0)) < 1;
     }
 
-    private static void print(final TrackEntryInfo info, final String event) {
+    private static void print(final TrackEntry info, final String event) {
         final LocalDateTime ts = LocalDateTime.ofEpochSecond(info.getTimestamp(), 0, ZoneOffset.UTC);
         System.out.println(ts + " " + event);
     }
 
-    private static void printWithAirport(final TrackEntryInfo info, final Set<String> events) {
+    private static void printWithAirport(final TrackEntry info, final Set<String> events) {
         final LocalDateTime ts = LocalDateTime.ofEpochSecond(info.getTimestamp(), 0, ZoneOffset.UTC);
         System.out.println(ts
                 + " / " + Str.al(findAirportIcao(info), 4)
@@ -294,7 +299,7 @@ public class TrackAnalyzer1 {
                 + " / " + events);
     }
 
-    private static String findAirportIcao(TrackEntryInfo info) {
+    private static String findAirportIcao(TrackEntry info) {
         final Airport airport = Airports.get().findWithinBoundary(Geo.coords(info.getLatitude(), info.getLongitude()));
         return airport != null ? airport.getIcao() : "n/a";
     }
@@ -363,8 +368,8 @@ public class TrackAnalyzer1 {
         private final double distance;
         private final Set<String> startEvents = new TreeSet<>();
         private final Set<String> finishEvents = new TreeSet<>();
-        private final TrackEntryInfo startPosition;
-        private final TrackEntryInfo finishPosition;
+        private final TrackEntry startPosition;
+        private final TrackEntry finishPosition;
 
         public static SegmentInfo zero() {
             return new SegmentInfo(0 ,0, Collections.emptySet(), Collections.emptySet(), null, null);
@@ -374,8 +379,8 @@ public class TrackAnalyzer1 {
                             final double distance,
                             final Set<String> startEvents,
                             final Set<String> finishEvents,
-                            final TrackEntryInfo startPosition,
-                            final TrackEntryInfo finishPosition) {
+                            final TrackEntry startPosition,
+                            final TrackEntry finishPosition) {
             this.time = time;
             this.distance = distance;
             this.startEvents.addAll(startEvents);
@@ -430,6 +435,10 @@ public class TrackAnalyzer1 {
             return false;
         }
 
+        public Set<String> getStartEvents() {
+            return Collections.unmodifiableSet(startEvents);
+        }
+
         public boolean hasFinishEvent(final String event) {
             return finishEvents.contains(event);
         }
@@ -441,6 +450,10 @@ public class TrackAnalyzer1 {
                 }
             }
             return false;
+        }
+
+        public Set<String> getFinishEvents() {
+            return Collections.unmodifiableSet(finishEvents);
         }
 
         public boolean isTakeoffLanding() {
@@ -455,19 +468,19 @@ public class TrackAnalyzer1 {
             return Duration.ofMillis(time);
         }
 
-        public SegmentInfo setStartPosition(final TrackEntryInfo start) {
+        public SegmentInfo setStartPosition(final TrackEntry start) {
             return new SegmentInfo(this.time, this.distance, startEvents, finishEvents, start, finishPosition);
         }
 
-        public SegmentInfo setFinishPosition(final TrackEntryInfo finish) {
+        public SegmentInfo setFinishPosition(final TrackEntry finish) {
             return new SegmentInfo(this.time, this.distance, startEvents, finishEvents, startPosition, finish);
         }
 
-        public TrackEntryInfo getStartPosition() {
+        public TrackEntry getStartPosition() {
             return startPosition;
         }
 
-        public TrackEntryInfo getFinishPosition() {
+        public TrackEntry getFinishPosition() {
             return finishPosition;
         }
 

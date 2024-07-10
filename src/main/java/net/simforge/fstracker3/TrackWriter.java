@@ -13,10 +13,7 @@ import java.io.File;
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.LinkedList;
-
-import static net.simforge.fstracker3.TrackEntryInfo.Field.*;
 
 public class TrackWriter {
     private static final Logger log = LoggerFactory.getLogger(TrackWriter.class);
@@ -26,36 +23,20 @@ public class TrackWriter {
     private static final DecimalFormat d6 = new DecimalFormat("0.0#####");
 
     private String partitionFileName;
-    private final LinkedList<TrackEntryInfo> partitionData = new LinkedList<>();
+    private final LinkedList<TrackEntry> partitionData = new LinkedList<>();
     private long lastWriteTs;
 
-    public synchronized void append(final SimState simState) throws IOException {
+    public synchronized void append(final TrackEntry trackEntry) throws IOException {
         if (isPartitionFull() || isPartitionNotInitialized()) {
             writePartitionData();
             startNewPartition();
         }
 
-        partitionData.add(toTrackEntryInfo(simState));
+        partitionData.add(trackEntry);
 
         if (isTimeToWritePartitionData()) {
             writePartitionData();
         }
-    }
-
-    private TrackEntryInfo toTrackEntryInfo(final SimState simState) {
-        final TrackEntryInfo trackInfo = new TrackEntryInfo();
-
-        trackInfo.put(timestamp, JavaTime.nowUtc().toEpochSecond(ZoneOffset.UTC));
-        trackInfo.put(title, simState.getTitle());
-        trackInfo.put(latitude, simState.getLatitude());
-        trackInfo.put(longitude, simState.getLongitude());
-        trackInfo.put(altitude, simState.getAltitude());
-        trackInfo.put(on_ground, simState.getOnGround());
-        trackInfo.put(groundspeed, simState.getGroundVelocity());
-        trackInfo.put(parking_brake, simState.getBrakeParkingPosition());
-        trackInfo.put(engine_running, simState.getEngineCombustion1());
-
-        return trackInfo;
     }
 
     private void writePartitionData() throws IOException {

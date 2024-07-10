@@ -6,12 +6,16 @@ import flightsim.simconnect.SimObjectType;
 import flightsim.simconnect.config.ConfigurationNotFoundException;
 import flightsim.simconnect.recv.*;
 import net.simforge.commons.misc.Geo;
+import net.simforge.commons.misc.JavaTime;
 import net.simforge.commons.misc.Str;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.text.DecimalFormat;
+import java.time.ZoneOffset;
+
+import static net.simforge.fstracker3.TrackEntry.Field.*;
 
 public class FSDataFeeder implements EventHandler, OpenHandler, QuitHandler, SimObjectDataTypeHandler, SystemStateHandler, ExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(FSDataFeeder.class);
@@ -23,12 +27,15 @@ public class FSDataFeeder implements EventHandler, OpenHandler, QuitHandler, Sim
 
     private static final DecimalFormat coordFormat = new DecimalFormat("##0.000000");
     private static final DecimalFormat d1 = new DecimalFormat("0.0");
+    private final TrackEntryConsumer trackEntryConsumer;
 
     private SimState currentSimState;
 
-    private final TrackWriter trackWriter = new TrackWriter();
-
     private boolean simQuit = false;
+
+    public FSDataFeeder(final TrackEntryConsumer trackEntryConsumer) {
+        this.trackEntryConsumer = trackEntryConsumer;
+    }
 
     public void connectAndRunCollectionCycle() throws IOException, ConfigurationNotFoundException, InterruptedException {
         SimConnect sc = new SimConnect("FSDataFeeder", 0);
@@ -70,7 +77,6 @@ public class FSDataFeeder implements EventHandler, OpenHandler, QuitHandler, Sim
                 Thread.sleep(1000);
             }
         } finally {
-            trackWriter.close();
             dt.tryStop();
         }
     }
@@ -116,11 +122,7 @@ public class FSDataFeeder implements EventHandler, OpenHandler, QuitHandler, Sim
 
             currentSimState = state;
 
-            try {
-                trackWriter.append(currentSimState);
-            } catch (IOException ex) {
-                log.error("Unable to write track data", ex);
-            }
+            trackEntryConsumer.consume(toTrackEntry(currentSimState));
         }
 
         printState();
@@ -149,5 +151,21 @@ public class FSDataFeeder implements EventHandler, OpenHandler, QuitHandler, Sim
                 currentSimState.getBrakeParkingPosition(),
                 currentSimState.isStationary(),
                 currentSimState.getEngineCombustion1()));
+    }
+
+    private TrackEntry toTrackEntry(final SimState simState) {
+        final TrackEntry trackInfo = new TrackEntry();
+
+        trackInfo.put(timestamp, JavaTime.nowUtc().toEpochSecond(ZoneOffset.UTC));
+        trackInfo.put(title, simState.getTitle());
+        trackInfo.put(latitude, simState.getLatitude());
+        trackInfo.put(longitude, simState.getLongitude());
+        trackInfo.put(altitude, simState.getAltitude());
+        trackInfo.put(on_ground, simState.getOnGround());
+        trackInfo.put(groundspeed, simState.getGroundVelocity());
+        trackInfo.put(parking_brake, simState.getBrakeParkingPosition());
+        trackInfo.put(engine_running, simState.getEngineCombustion1());
+
+        return trackInfo;
     }
 }

@@ -1,34 +1,29 @@
 package net.simforge.fstracker3;
 
 import net.simforge.commons.misc.Geo;
-import net.simforge.commons.misc.JavaTime;
 import net.simforge.commons.misc.Str;
 import net.simforge.refdata.airports.Airport;
 import net.simforge.refdata.airports.Airports;
 
-import java.awt.*;
 import java.io.IOException;
 import java.text.DecimalFormat;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.*;
 import java.util.List;
 import java.util.function.Function;
 
-import static net.simforge.fstracker3.TrackEntryInfo.Field.engine_running;
-
 public class TrackAnalyzer2 {
     private static final DecimalFormat d1 = new DecimalFormat("0.0");
 
     public static void main(String[] args) throws IOException {
         final TrackReader reader = TrackReader.buildForAll();
-        final List<TrackEntryInfo> trackData = reader.readTrackData();
+        final List<TrackEntry> trackData = reader.readTrackData();
         System.out.println(trackData.size());
 
-        TrackEntryInfo prev = null;
+        TrackEntry prev = null;
         TrackWindow window = new TrackWindow(7);
-        for (TrackEntryInfo each : trackData) {
+        for (TrackEntry each : trackData) {
             try {
                 if (prev == null) {
                     continue;
@@ -67,14 +62,14 @@ public class TrackAnalyzer2 {
         }
     }
 
-    private static void print(final TrackEntryInfo info, final String event) {
+    private static void print(final TrackEntry info, final String event) {
         final LocalDateTime ts = LocalDateTime.ofEpochSecond(info.getTimestamp(), 0, ZoneOffset.UTC);
         System.out.println(ts + " " + event);
     }
 
     private static class TrackWindow {
         private final int size;
-        private final LinkedList<TrackEntryInfo> data = new LinkedList<>();
+        private final LinkedList<TrackEntry> data = new LinkedList<>();
         private final Set<Event> lastEvents = new TreeSet<>();
         private final Map<String, Status1> status = new HashMap<>();
 
@@ -87,7 +82,7 @@ public class TrackAnalyzer2 {
             lastEvents.clear();
         }
 
-        public void add(final TrackEntryInfo info) {
+        public void add(final TrackEntry info) {
             data.add(info);
             while (data.size() > size) {
                 data.remove(0);
@@ -115,10 +110,10 @@ public class TrackAnalyzer2 {
         }
 
         private void calculateStatus(final String name,
-                                     final Function<TrackEntryInfo, Boolean> currentStatusFn) {
+                                     final Function<TrackEntry, Boolean> currentStatusFn) {
             int trues = 0;
             int falses = 0;
-            for (final TrackEntryInfo each : data) {
+            for (final TrackEntry each : data) {
                 boolean eachStatus = currentStatusFn.apply(each);
                 if (eachStatus) {
                     trues++;

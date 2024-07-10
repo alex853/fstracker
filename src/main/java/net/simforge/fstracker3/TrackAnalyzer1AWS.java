@@ -15,7 +15,7 @@ import java.util.UUID;
 
 public class TrackAnalyzer1AWS {
     public static void main(String[] args) throws IOException {
-        final List<TrackEntryInfo> trackData = TrackAnalyzer1.loadTrackDataAfter(LocalDateTime.of(2024, Month.JULY, 10, 0, 0));
+        final List<TrackEntry> trackData = TrackAnalyzer1.loadTrackDataAfter(LocalDateTime.of(2024, Month.JULY, 10, 0, 0));
         System.out.println(trackData.size());
 
         final List<TrackAnalyzer1.SegmentInfo> segments = TrackAnalyzer1.convertTrackDataToSegments(trackData);

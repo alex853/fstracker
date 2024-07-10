@@ -5,7 +5,7 @@ import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
 
-public class TrackEntryInfo {
+public class TrackEntry {
     private final Map<Field, Object> fields = new HashMap<>();
 
     public void put(final Field field, final String value) {
