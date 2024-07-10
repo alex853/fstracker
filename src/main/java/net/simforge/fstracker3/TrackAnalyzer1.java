@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.text.DecimalFormat;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.time.Month;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -25,13 +24,19 @@ import static net.simforge.fstracker3.TrackEntryInfo.Field.engine_running;
 public class TrackAnalyzer1 {
     private static final DecimalFormat d1 = new DecimalFormat("0.0");
 
-    public static void main(String[] args) throws IOException {
+    public static List<TrackEntryInfo> loadTrackDataAll() throws IOException {
         final TrackReader reader = TrackReader.buildForAll();
-        final List<TrackEntryInfo> trackData = reader.readTrackData().stream()
-                .filter(t -> t.getDateTime().isAfter(LocalDateTime.of(2024, Month.JUNE, 22, 0, 0)))
-                .toList();
-        System.out.println(trackData.size());
+        return reader.readTrackData();
+    }
 
+    public static List<TrackEntryInfo> loadTrackDataAfter(final LocalDateTime threshold) throws IOException {
+        final TrackReader reader = TrackReader.buildForAll();
+        return reader.readTrackData().stream()
+                .filter(t -> t.getDateTime().isAfter(threshold))
+                .toList();
+    }
+
+    public static List<SegmentInfo> convertTrackDataToSegments(List<TrackEntryInfo> trackData) {
         TrackEntryInfo prev = null;
         SegmentInfo segment = null;
         final List<SegmentInfo> segments = new ArrayList<>();
@@ -147,103 +152,113 @@ public class TrackAnalyzer1 {
             printSegment(segment);
             segments.add(segment.addFinishEvent("Track END"));
         }
-
-        System.out.println();
-        System.out.println();
-        System.out.println();
-        segments.stream()
-                .filter(SegmentInfo::isTakeoffLanding)
-                .forEach(s -> {
-                    System.out.println();
-                    System.out.println(s);
-                    System.out.println();
-                    recognizeFlight(s, segments);
-                });
+        return segments;
     }
 
-    private static void recognizeFlight(final SegmentInfo flyingSegment, final List<SegmentInfo> segments) {
-        final List<SegmentInfo> before = segments.subList(0, segments.indexOf(flyingSegment));
-        final List<SegmentInfo> after = segments.subList(segments.indexOf(flyingSegment)+1, segments.size());
+    public static FlightInfo recognizeFlight(final SegmentInfo flyingSegment, final List<SegmentInfo> segments) {
+        // todo ak1 implement max minutes
+        final List<SegmentInfo> before = trimBefore(segments.subList(0, segments.indexOf(flyingSegment)), 30);
+        final List<SegmentInfo> after = trimAfter(segments.subList(segments.indexOf(flyingSegment) + 1, segments.size()), 30);
 
-        if (flyingSegment.getDuration().compareTo(Duration.ofSeconds(30)) < 0) {
-            System.out.println("SHOUT!!! FLYING SEGMENT TOO SHORT, BOUNCING?");
-            return;
+        SegmentInfo beginningOfFlight;
+
+        final Optional<SegmentInfo> startsWithEngineStart = findInReversalOrder(before, s -> s.hasStartEvent("Engine Startup"));
+        if (startsWithEngineStart.isPresent()) {
+            final List<SegmentInfo> engineStartupToTakeoff = before.subList(before.indexOf(startsWithEngineStart.get()), before.size());
+            final Optional<SegmentInfo> firstStartMoving = engineStartupToTakeoff.stream().filter(s -> s.hasStartEvent("Start Moving")).findFirst();
+            if (firstStartMoving.isPresent()) {
+                beginningOfFlight = firstStartMoving.get();
+            } else {
+                beginningOfFlight = startsWithEngineStart.get();
+            }
+        } else {
+            final Optional<SegmentInfo> startsWithParkingBrakeOff = findInReversalOrder(before, s -> s.hasStartEvent("Parking Brake Off"));
+            if (startsWithParkingBrakeOff.isPresent()) {
+                beginningOfFlight = startsWithParkingBrakeOff.get();
+            } else {
+                final Optional<SegmentInfo> startsWithStartMoving = findInReversalOrder(before, s -> s.hasStartEvent("Start Moving"));
+                if (startsWithStartMoving.isPresent()) {
+                    beginningOfFlight = startsWithStartMoving.get();
+                } else {
+                    System.out.println("UNABLE TO FIND BEGINNING OF FLIGHT!!!!!");
+                    return null;
+                }
+            }
         }
 
+        SegmentInfo endOfFlight;
 
-
-        final List<SegmentInfo> beforeTrimmed = trimObviousCasesInBefore(before);
-        final Optional<SegmentInfo> startsWithEngineStart = findInReversalOrder(beforeTrimmed, s -> s.hasStartEvent("Engine Startup"));
-        if (startsWithEngineStart.isEmpty()) {
-            System.out.println("SHOUT!!! Engine Startup not found!!!!");
-            return;
-        }
-        final List<SegmentInfo> engineStartupToTakeoff = beforeTrimmed.subList(beforeTrimmed.indexOf(startsWithEngineStart.get()), beforeTrimmed.size());
-        final Optional<SegmentInfo> firstStartMoving = engineStartupToTakeoff.stream().filter(s -> s.hasStartEvent("Start Moving")).findFirst();
-        if (firstStartMoving.isEmpty()) {
-            System.out.println("SHOUT!!! Start Moving not found!!!!");
-            return;
-        }
-
-        final SegmentInfo beginningOfFlight = firstStartMoving.get();
-        final List<SegmentInfo> departureSegments = engineStartupToTakeoff.subList(engineStartupToTakeoff.indexOf(beginningOfFlight), engineStartupToTakeoff.size());
-
-
-
-        final List<SegmentInfo> afterTrimmed = trimObviousCasesInAfter(after);
-        final Optional<SegmentInfo> endsWithEngineShutdown = afterTrimmed.stream().filter(s -> s.hasFinishEvent("Engine Shutdown")).findFirst();
-        if (endsWithEngineShutdown.isEmpty()) {
-            System.out.println("SHOUT!!! Engine Shutdown not found!!!!");
-            return;
-        }
-        final List<SegmentInfo> landingToEngineShutdown = afterTrimmed.subList(0, afterTrimmed.indexOf(endsWithEngineShutdown.get()) + 1);
-        final Optional<SegmentInfo> lastStopMoving = findInReversalOrder(landingToEngineShutdown, s -> s.hasFinishEvent("Stop Moving"));
-        if (lastStopMoving.isEmpty()) {
-            System.out.println("SHOUT!!! Stop Moving not found!!!!");
-            return;
+        final Optional<SegmentInfo> endsWithEngineShutdown = after.stream().filter(s -> s.hasFinishEvent("Engine Shutdown")).findFirst();
+        if (endsWithEngineShutdown.isPresent()) {
+            final List<SegmentInfo> landingToEngineShutdown = after.subList(0, after.indexOf(endsWithEngineShutdown.get()) + 1);
+            final Optional<SegmentInfo> lastStopMoving = findInReversalOrder(landingToEngineShutdown, s -> s.hasFinishEvent("Stop Moving"));
+            if (lastStopMoving.isPresent()) {
+                endOfFlight = lastStopMoving.get();
+            } else {
+                endOfFlight = endsWithEngineShutdown.get();
+            }
+        } else {
+            final Optional<SegmentInfo> endsWithParkingBrakeOn = after.stream().filter(s -> s.hasFinishEvent("Parking Brake On")).findFirst();
+            if (endsWithParkingBrakeOn.isPresent()) {
+                endOfFlight = endsWithParkingBrakeOn.get();
+            } else {
+                final Optional<SegmentInfo> endsWithStopMoving = after.stream().filter(s -> s.hasFinishEvent("Stop Moving")).findFirst();
+                if (endsWithStopMoving.isPresent()) {
+                    endOfFlight = endsWithStopMoving.get();
+                } else {
+                    System.out.println("UNABLE TO FIND END OF FLIGHT!!!!!");
+                    return null;
+                }
+            }
         }
 
-        final SegmentInfo endOfFlight = lastStopMoving.get();
-        final List<SegmentInfo> arrivalSegments = landingToEngineShutdown.subList(0, landingToEngineShutdown.indexOf(endOfFlight) + 1);
-
-
+        final List<SegmentInfo> departureSegments = before.subList(before.indexOf(beginningOfFlight), before.size());
+        final List<SegmentInfo> arrivalSegments = after.subList(0, after.indexOf(endOfFlight) + 1);
 
         final double totalDistance = sumDistance(departureSegments)
                 + flyingSegment.getDistance()
                 + sumDistance(arrivalSegments);
 
+        return new FlightInfo(beginningOfFlight, flyingSegment, endOfFlight, totalDistance);
+    }
 
-
+    public static void printFlightInfo(final FlightInfo flight) {
         System.out.println("=========== FLIGHT INFO =================================");
-        System.out.println("DOF         " + JavaTime.yMd.format(beginningOfFlight.getStartPosition().getDateTime()));
+        System.out.println("DOF         " + JavaTime.yMd.format(flight.getTimeOut()));
         System.out.println("DEPARTURE   "
-                + Str.al(findAirportIcao(flyingSegment.getStartPosition()), 4)
-                + "    TIME OUT " + JavaTime.toHhmm(beginningOfFlight.getStartPosition().getDateTime().toLocalTime())
-                + "    TIME OFF " + JavaTime.toHhmm(flyingSegment.getStartPosition().getDateTime().toLocalTime()));
+                + Str.al(icaoOrNA(flight.getDepartureIcao()), 4)
+                + "    TIME OUT " + JavaTime.toHhmm(flight.getTimeOut().toLocalTime())
+                + "    TIME OFF " + JavaTime.toHhmm(flight.getTimeOff().toLocalTime()));
         System.out.println("DESTINATION "
-                + Str.al(findAirportIcao(flyingSegment.getFinishPosition()), 4)
-                + "    TIME ON  " + JavaTime.toHhmm(flyingSegment.getFinishPosition().getDateTime().toLocalTime())
-                + "    TIME IN  " + JavaTime.toHhmm(endOfFlight.getFinishPosition().getDateTime().toLocalTime()));
-        System.out.println("DISTANCE            " + d1.format(totalDistance) + " nm");
-        System.out.println("FLIGHT TIME         " + JavaTime.toHhmm(Duration.ofSeconds(endOfFlight.getFinishPosition().getTimestamp() - beginningOfFlight.getStartPosition().getTimestamp())));
+                + Str.al(icaoOrNA(flight.getDestinationIcao()), 4)
+                + "    TIME ON  " + JavaTime.toHhmm(flight.getTimeOn().toLocalTime())
+                + "    TIME IN  " + JavaTime.toHhmm(flight.getTimeIn().toLocalTime()));
+        System.out.println("DISTANCE            " + d1.format(flight.getTotalDistance()) + " nm");
+        System.out.println("FLIGHT TIME         " + JavaTime.toHhmm(flight.getTotalTime()));
+    }
+
+    private static String icaoOrNA(final String icao) {
+        return icao != null ? icao : "n/a";
     }
 
     private static double sumDistance(final List<SegmentInfo> segments) {
         return segments.stream().map(SegmentInfo::getDistance).reduce(Double::sum).orElse(0.0);
     }
 
-    private static List<SegmentInfo> trimObviousCasesInBefore(final List<SegmentInfo> before) {
+    private static List<SegmentInfo> trimBefore(final List<SegmentInfo> before, final int maxMinutes) {
         final Optional<SegmentInfo> trimBy = findInReversalOrder(before,
-                s -> s.hasAnyStartEvent("Simulation IN", "Time gap TO", "Jump TO"));
+                s -> s.hasAnyStartEvent("Simulation IN", "Time gap TO", "Jump TO")
+                    || (s.isTakeoffLanding() && !s.isBouncing()));
         if (trimBy.isEmpty()) {
             return before;
         }
         return before.subList(before.indexOf(trimBy.get()), before.size());
     }
 
-    private static List<SegmentInfo> trimObviousCasesInAfter(final List<SegmentInfo> after) {
+    private static List<SegmentInfo> trimAfter(final List<SegmentInfo> after, final int maxMinutes) {
         final Optional<SegmentInfo> trimBy = after.stream()
-                .filter(s -> s.hasAnyFinishEvent("Simulation OUT", "Time gap FROM", "Jump FROM"))
+                .filter(s -> s.hasAnyFinishEvent("Simulation OUT", "Time gap FROM", "Jump FROM")
+                        || (s.isTakeoffLanding() && !s.isBouncing()))
                 .findFirst();
         if (trimBy.isEmpty()) {
             return after;
@@ -288,7 +303,62 @@ public class TrackAnalyzer1 {
         System.out.println("                               Segment data - " + segmentInfo);
     }
 
-    private static class SegmentInfo {
+    public static class FlightInfo {
+        private final SegmentInfo beginningOfFlight;
+        private final SegmentInfo flyingSegment;
+        private final SegmentInfo endOfFlight;
+        private final double totalDistance;
+
+        public FlightInfo(final SegmentInfo beginningOfFlight,
+                          final SegmentInfo flyingSegment,
+                          final SegmentInfo endOfFlight,
+                          final double totalDistance) {
+            this.beginningOfFlight = beginningOfFlight;
+            this.flyingSegment = flyingSegment;
+            this.endOfFlight = endOfFlight;
+            this.totalDistance = totalDistance;
+        }
+
+        public LocalDateTime getTimeOut() {
+            return beginningOfFlight.getStartPosition().getDateTime();
+        }
+
+        public LocalDateTime getTimeOff() {
+            return flyingSegment.getStartPosition().getDateTime();
+        }
+
+        public LocalDateTime getTimeOn() {
+            return flyingSegment.getFinishPosition().getDateTime();
+        }
+
+        public LocalDateTime getTimeIn() {
+            return endOfFlight.getFinishPosition().getDateTime();
+        }
+
+        public double getTotalDistance() {
+            return totalDistance;
+        }
+
+        public Duration getTotalTime() {
+            return Duration.ofSeconds(endOfFlight.getFinishPosition().getTimestamp() - beginningOfFlight.getStartPosition().getTimestamp());
+        }
+
+        public Duration getAirTime() {
+            return Duration.ofSeconds(flyingSegment.getFinishPosition().getTimestamp() - flyingSegment.getStartPosition().getTimestamp());
+        }
+
+        public String getDepartureIcao() {
+            final Airport airport = Airports.get().findWithinBoundary(Geo.coords(flyingSegment.getStartPosition().getLatitude(), flyingSegment.getStartPosition().getLongitude()));
+            return airport != null ? airport.getIcao() : null;
+        }
+
+        public String getDestinationIcao() {
+            final Airport airport = Airports.get().findWithinBoundary(Geo.coords(flyingSegment.getFinishPosition().getLatitude(), flyingSegment.getFinishPosition().getLongitude()));
+            return airport != null ? airport.getIcao() : null;
+        }
+    }
+
+    public static class SegmentInfo {
         private final long time;
         private final double distance;
         private final Set<String> startEvents = new TreeSet<>();
@@ -375,6 +445,10 @@ public class TrackAnalyzer1 {
 
         public boolean isTakeoffLanding() {
             return hasStartEvent("Takeoff") && hasFinishEvent("Landing");
+        }
+
+        public boolean isBouncing() {
+            return isTakeoffLanding() && getDuration().compareTo(Duration.ofSeconds(30)) < 0;
         }
 
         public Duration getDuration() {
