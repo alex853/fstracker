@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 import java.time.Month;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Scanner;
 import java.util.UUID;
 
 public class TrackAnalyzer1AWS {
@@ -40,10 +41,31 @@ public class TrackAnalyzer1AWS {
 
                     AmazonDynamoDB amazonDynamoDB = DynamoDB.get();
                     DynamoDBMapper mapper = new DynamoDBMapper(amazonDynamoDB);
-                    FSLogRecord existingAwsRecord = mapper.load(FSLogRecord.class, DynamoDB.getUserId(), awsRecord.getBeginningDT());
+                    String flightRecordId = awsRecord.getBeginningDT();
+                    FSLogRecord existingAwsRecord = mapper.load(FSLogRecord.class, DynamoDB.getUserId(), flightRecordId);
 
                     if (existingAwsRecord != null) {
                         System.out.println("  <flight record already logged>  ");
+                        return;
+                    }
+
+                    if (TrackStorage.isFlightRecordSkipped(flightRecordId)) {
+                        System.out.println("  <flight record NOT logged however it was SKIPPED previously>  ");
+                        return;
+                    }
+
+                    boolean decisionToSkip = false;
+                    boolean decisionToLog = false;
+                    while (!decisionToSkip && !decisionToLog) {
+                        System.out.print("[L]og or [S]kip the flight record: ");
+                        int choice = new Scanner(System.in).nextLine().charAt(0);
+                        decisionToLog = choice == 'l' || choice == 'L';
+                        decisionToSkip = choice == 's' || choice == 'S';
+                    }
+
+                    if (decisionToSkip) {
+                        TrackStorage.markFlightRecordSkipped(flightRecordId);
+                        System.out.println("  !flight record SKIPPED and will be skipped in future!  ");
                         return;
                     }
 
@@ -84,5 +106,17 @@ public class TrackAnalyzer1AWS {
         record.getFlight().setAircraftRegistration(null);
 
         return record;
+    }
+
+    static int readSingleCharacter() {
+        try {
+            int input = System.in.read();
+            if (input == '\n') {
+                return 0;
+            }
+            return input;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
