@@ -20,8 +20,13 @@ import java.util.Map;
 public class App {
     private static final Logger log = LoggerFactory.getLogger(App.class);
     private static final SimStateField[] fields = {
-            SimStateField.Plane_Altitude,
-            SimStateField.Ground_Velocity
+            SimStateField.Airspeed_Indicated,
+            SimStateField.Airspeed_Mach,
+            SimStateField.Airspeed_True,
+            SimStateField.Ground_Velocity,
+            SimStateField.Indicated_Altitude,
+            SimStateField.Vertical_Speed,
+            SimStateField.Heading_Indicator
     };
 
     private static final String session = "1";
@@ -29,7 +34,7 @@ public class App {
     public static void main(String[] args) {
         log.info("Starting FSRemoteControl");
 
-        final SimStateConsumer consumer = App::sendSimState;
+        final SimStateConsumer consumer = App::consumeSimState;
 
         while (true) {
             final FSDataFeeder feeder = new FSDataFeeder(consumer, fields);
@@ -53,9 +58,25 @@ public class App {
         }
     }
 
-    private static void sendSimState(final SimState simState) {
+    private static void consumeSimState(final SimState simState) {
+        final Map<String, Object> convertedState = convertSimState(simState);
+        sendSimState(convertedState);
+    }
+
+    private static Map<String, Object> convertSimState(SimState simState) {
+        final Map<String, Object> convertedState = new HashMap<>();
+        simState.getState().forEach((field, value) -> {
+            final JsonConversion jsonConversion = JsonConversion.findByField(field);
+            convertedState.put(
+                    jsonConversion.name(),
+                    jsonConversion.getConverter().convert(value));
+        });
+        return convertedState;
+    }
+
+    private static void sendSimState(final Map<String, Object> state) {
         final String urlString = "https://f1.simforge.co.uk:7125/service/v1/sim/post?session=" + session;
-        final String jsonInputString = new Gson().toJson(simState.getState());
+        final String jsonInputString = new Gson().toJson(state);
 
         try {
             final URL url = new URL(urlString);

@@ -10,11 +10,17 @@ public enum SimStateField {
     Plane_Longitude("Plane Longitude", "degrees", SimConnectDataType.FLOAT64),
     Plane_Altitude("Plane Altitude", "feet", SimConnectDataType.FLOAT64),
     Sim_On_Ground("Sim On Ground", null, SimConnectDataType.INT32),
-    Ground_Velocity("Ground Velocity", null, SimConnectDataType.FLOAT64),
     Is_User_Sim("Is User Sim", null, SimConnectDataType.INT32),
     Plane_In_Parking_State("Plane In Parking State", null, SimConnectDataType.INT32),
     Brake_Parking_Position("Brake Parking Position", null, SimConnectDataType.INT32),
-    Eng_Combustion_1("Eng Combustion:1", null, SimConnectDataType.INT32);
+    Eng_Combustion_1("Eng Combustion:1", null, SimConnectDataType.INT32),
+    Airspeed_Indicated("Airspeed Indicated", "knots", SimConnectDataType.FLOAT64),
+    Airspeed_Mach("Airspeed Mach", "mach", SimConnectDataType.FLOAT64),
+    Airspeed_True("Airspeed True", "knots", SimConnectDataType.FLOAT64),
+    Ground_Velocity("Ground Velocity", "knots", SimConnectDataType.FLOAT64),
+    Indicated_Altitude("Indicated Altitude", "feet", SimConnectDataType.FLOAT64),
+    Vertical_Speed("Vertical Speed", "feet per second", SimConnectDataType.FLOAT64),
+    Heading_Indicator("Heading Indicator", null, SimConnectDataType.FLOAT64);
 
     private final String title;
     private final String unitsName;
