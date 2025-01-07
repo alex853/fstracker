@@ -75,7 +75,7 @@ public class App {
     }
 
     private static void sendSimState(final Map<String, Object> state) {
-        final String urlString = "https://f1.simforge.co.uk:7125/service/v1/sim/post?session=" + session;
+        final String urlString = "https://d1.simforge.co.uk:7775/service/v1/sim/post?session=" + session;
         final String jsonInputString = new Gson().toJson(state);
 
         try {
