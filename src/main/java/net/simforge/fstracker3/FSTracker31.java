@@ -41,7 +41,7 @@ public class FSTracker31 {
         final TrackWriter trackWriter = new TrackWriter();
         final LinkedList<TrackEntry> trackTail = new LinkedList<>();
 
-        final SimStateConsumer consumer = simState -> {
+        final SimStateConsumer consumer = (simState, simConnect) -> {
             final TrackEntry trackEntry = toTrackEntry(simState);
 
             try {

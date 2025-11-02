@@ -114,7 +114,7 @@ public class FSDataFeeder implements EventHandler, OpenHandler, QuitHandler, Sim
 
             currentSimState = state;
 
-            simStateConsumer.consume(currentSimState);
+            simStateConsumer.consume(currentSimState, sender);
         }
 
         printState();
@@ -122,15 +122,15 @@ public class FSDataFeeder implements EventHandler, OpenHandler, QuitHandler, Sim
 
     @Override
     public void handleSystemState(SimConnect simConnect, RecvSystemState recvSystemState) {
-        log.trace("recvSystemState { " + recvSystemState.getRequestID() + ", " + recvSystemState.getDataInteger() + ", " + recvSystemState.getDataFloat() + ", " + recvSystemState.getDataString() + " }");
+        log.info("recvSystemState { " + recvSystemState.getRequestID() + ", " + recvSystemState.getDataInteger() + ", " + recvSystemState.getDataFloat() + ", " + recvSystemState.getDataString() + " }");
     }
 
     @Override
     public void handleException(SimConnect simConnect, RecvException e) {
-        log.trace("recvException = " + e + ", " + e.getException());
+        log.error("recvException = " + e + ", " + e.getException());
     }
 
     private void printState() {
-        log.info(currentSimState.getState().toString());
+        log.trace(currentSimState.getState().toString());
     }
 }

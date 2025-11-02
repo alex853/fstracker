@@ -1,6 +1,7 @@
 package net.simforge.fsremotecontrol;
 
 import com.google.gson.Gson;
+import flightsim.simconnect.SimConnect;
 import flightsim.simconnect.config.ConfigurationNotFoundException;
 import net.simforge.fsdatafeeder.FSDataFeeder;
 import net.simforge.fsdatafeeder.SimState;
@@ -58,7 +59,7 @@ public class App {
         }
     }
 
-    private static void consumeSimState(final SimState simState) {
+    private static void consumeSimState(final SimState simState, final SimConnect simConnect) {
         final Map<String, Object> convertedState = convertSimState(simState);
         sendSimState(convertedState);
     }

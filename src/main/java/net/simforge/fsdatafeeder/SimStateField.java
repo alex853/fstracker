@@ -9,6 +9,7 @@ public enum SimStateField {
     Plane_Latitude("Plane Latitude", "degrees", SimConnectDataType.FLOAT64),
     Plane_Longitude("Plane Longitude", "degrees", SimConnectDataType.FLOAT64),
     Plane_Altitude("Plane Altitude", "feet", SimConnectDataType.FLOAT64),
+    Plane_Heading_Degrees_True("Plane Heading Degrees True", "radians", SimConnectDataType.FLOAT64),
     Sim_On_Ground("Sim On Ground", null, SimConnectDataType.INT32),
     Is_User_Sim("Is User Sim", null, SimConnectDataType.INT32),
     Plane_In_Parking_State("Plane In Parking State", null, SimConnectDataType.INT32),
