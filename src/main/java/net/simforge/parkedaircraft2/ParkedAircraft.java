@@ -15,6 +15,7 @@ import java.io.IOException;
 // todo ak1 another icon
 // todo ak1 bring form to front
 // todo ak1 60 seconds timer before autocancellation
+// todo ak2 simconnect.text probe
 // todo ak2 hide at auto-start
 // todo ak2 limit max distance for simple movement
 // todo ak2 non-resizable frame
