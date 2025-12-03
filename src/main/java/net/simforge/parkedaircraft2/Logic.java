@@ -10,12 +10,13 @@ import java.io.File;
 import java.io.IOException;
 
 public class Logic {
+    public static final double SAVED_POSITION_DELTA = 0.001;
     private static Logic logic;
 
-    private SimStatus simStatus = SimStatus.NotStarted;
-    private TrackingState currentState;
-    private SavedAircraft savedAircraftToRestore;
-    private RestorationStatus restorationStatus;
+    private volatile SimStatus simStatus = SimStatus.NotStarted;
+    private volatile TrackingState currentState;
+    private volatile RestorationStatus restorationStatus = RestorationStatus.NothingToRestore;
+    private volatile SavedAircraft savedAircraftToRestore;
     private long userConfirmationInitiated;
 
     private Logic() {
@@ -43,27 +44,27 @@ public class Logic {
         return currentState;
     }
 
-    public Object getSavedAircraftToRestore() {
-        return savedAircraftToRestore;
+    public RestorationStatus getRestorationStatus() {
+        return restorationStatus;
     }
 
-    public void whenConnectedToSim() {
+    public synchronized void whenConnectedToSim() {
         simStatus = SimStatus.MainScreen;
     }
 
-    public void whenDisconnectedFromSim() {
+    public synchronized void whenDisconnectedFromSim() {
         simStatus = SimStatus.NotStarted;
         currentState = null;
         savedAircraftToRestore = null;
     }
 
-    public void whenAircraftStateReceived(final Mk1AircraftStateDefinition aircraftState) {
+    public synchronized void whenAircraftStateReceived(final Mk1AircraftStateDefinition aircraftState) {
         final TrackingState lastTrackingState = new TrackingState(aircraftState);
 
         if (currentState == null) {
             if (lastTrackingState.inSimulation) {
-                // todo ak1 statusToRestore = loadIfExists(lastTrackingState.title); it is not required?
-                // todo ak1 restorationStatus
+                savedAircraftToRestore = loadIfExists(lastTrackingState.title);
+                restorationStatus = savedAircraftToRestore != null ? RestorationStatus.WaitForUserConfirmation : RestorationStatus.NothingToRestore;
                 simStatus = SimStatus.FullyReady;
             } else {
                 savedAircraftToRestore = loadIfExists(lastTrackingState.title);
@@ -77,12 +78,14 @@ public class Logic {
                 restorationStatus = savedAircraftToRestore != null ? RestorationStatus.WaitForSimReady : RestorationStatus.NothingToRestore;
                 simStatus = SimStatus.Loading;
             } else {
-                final SavedAircraft savedAircraftToSave = SavedAircraft.from(currentState);
-                save(savedAircraftToSave);
-                simStatus = SimStatus.MainScreen;
+                if (restorationStatus != RestorationStatus.NothingToRestore) {
+                    final SavedAircraft savedAircraftToSave = SavedAircraft.from(currentState);
+                    save(savedAircraftToSave);
+                    simStatus = SimStatus.MainScreen;
 
-                savedAircraftToRestore = loadIfExists(lastTrackingState.title);
-                restorationStatus = RestorationStatus.WaitForSimReady;
+                    savedAircraftToRestore = loadIfExists(lastTrackingState.title);
+                    restorationStatus = RestorationStatus.WaitForSimReady;
+                }
             }
             currentState = lastTrackingState;
         } else { // currentState.inSimulation == lastTrackingState.inSimulation
@@ -103,26 +106,6 @@ public class Logic {
                             }
                         }
                     }
-                    System.out.println("  +++ Sim " + simStatus + " Restoration " + restorationStatus);
-
-                    if (simStatus == SimStatus.FullyReady) {
-                        final double distance = Geo.distance(
-                                Geo.coords(savedAircraftToRestore.latitude, savedAircraftToRestore.longitude),
-                                Geo.coords(lastTrackingState.aircraft.latitude, lastTrackingState.aircraft.longitude));
-                        if (distance < 0.001) {
-                            System.out.println("                          Aircraft is at LAST SEEN POSITION");
-                        } else {
-                            System.out.println("                          Aircraft is " + distance + " nm AWAY from LAST SEEN POSITION");
-                            SimWorker.get().moveAircraft(
-                                    new MoveAircraftDefinition(
-                                            savedAircraftToRestore.latitude,
-                                            savedAircraftToRestore.longitude,
-                                            savedAircraftToRestore.altitude + 1,
-                                            savedAircraftToRestore.heading
-                                    ));
-                        }
-                        savedAircraftToRestore = null;
-                    }
                 }
 
                 // todo ak0 if aircraft just parked and engine off, then save it
@@ -136,6 +119,39 @@ public class Logic {
 
             currentState = lastTrackingState;
         }
+    }
+
+    public synchronized void whenUserRestores() {
+        // todo ak0 checks
+        SimWorker.get().moveAircraft(
+                new MoveAircraftDefinition(
+                        savedAircraftToRestore.latitude,
+                        savedAircraftToRestore.longitude,
+                        savedAircraftToRestore.altitude + 1,
+                        savedAircraftToRestore.heading
+                ));
+
+        restorationStatus = RestorationStatus.NothingToRestore;
+        savedAircraftToRestore = null;
+    }
+
+    public synchronized void whenUserCancelsRestoration() {
+        restorationStatus = RestorationStatus.NothingToRestore;
+        savedAircraftToRestore = null;
+    }
+
+    public synchronized double getDistanceToSavedPosition() {
+        if (savedAircraftToRestore == null || !currentState.inSimulation) {
+            return Double.NaN;
+        }
+
+        return Geo.distance(
+                Geo.coords(savedAircraftToRestore.latitude, savedAircraftToRestore.longitude),
+                Geo.coords(currentState.aircraft.latitude, currentState.aircraft.longitude));
+    }
+
+    public synchronized boolean isAircraftAtToSavedPosition() {
+        return getDistanceToSavedPosition() < SAVED_POSITION_DELTA;
     }
 
     public enum SimStatus {

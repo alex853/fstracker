@@ -157,7 +157,7 @@ public class SimWorker implements EventHandler, OpenHandler, QuitHandler, SimObj
         log.error("recvException = " + e + ", " + e.getException());
     }
 
-    public void moveAircraft(final MoveAircraftDefinition moveAircraft) {
+    public void moveAircraft(final MoveAircraftDefinition moveAircraft) { // todo ak0 queue!!
         try {
             final byte[] bytes = new byte[32];
             final ByteBuffer buf = ByteBuffer.wrap(bytes);

@@ -37,6 +37,8 @@ dependencies {
 
     implementation 'com.amazonaws:aws-java-sdk-dynamodb:1.11.908'
 
+    implementation 'com.miglayout:miglayout-swing:11.0'
+
     annotationProcessor 'org.projectlombok:lombok:1.18.22'
 
     implementation files('lib/jsimconnect.jar')
