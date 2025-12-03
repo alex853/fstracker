@@ -24,7 +24,8 @@ public class SimWorker implements EventHandler, OpenHandler, QuitHandler, SimObj
     private static SimWorker simWorker;
 
     private boolean started;
-    private boolean simQuit;
+    private volatile boolean connected;
+    private volatile boolean simQuit;
     private SimConnect simConnect;
 
     private SimWorker() {
@@ -40,36 +41,83 @@ public class SimWorker implements EventHandler, OpenHandler, QuitHandler, SimObj
         return simWorker;
     }
 
+    public boolean isConnected() {
+        return connected;
+    }
+
     public void start() throws RuntimeException {
-        if (started) {
-            throw new IllegalStateException("already started");
+        synchronized (this) {
+            if (started) {
+                throw new IllegalStateException("already started");
+            }
+            started = true;
         }
-        started = true;
+
+        final Thread starterThread = new Thread(() -> {
+            while (true) {
+                try {
+                    doSimConnectStuff();
+                } catch (final IOException e) {
+                    log.warn("Connection unsuccessful: " + e.getMessage());
+                } catch (final ConfigurationNotFoundException e) {
+                    log.error("Configuration not found", e);
+                    break;
+                } catch (InterruptedException e) {
+                    log.error("Interrupted", e);
+                    break;
+                } finally {
+                    simConnect = null;
+                    simQuit = false;
+                }
+
+                try {
+                    //noinspection BusyWait
+                    Thread.sleep(10000);
+                } catch (InterruptedException e) {
+                    break;
+                }
+            }
+        }, "SimWorkerStarter");
+
+        starterThread.setDaemon(true);
+        starterThread.start();
+    }
+
+    private void doSimConnectStuff() throws IOException, ConfigurationNotFoundException, InterruptedException {
+        simConnect = new SimConnect("ParkedAircraft", 0);
+
+        simConnect.subscribeToSystemEvent(Definition.SimStart.ordinal(), "SimStart");
+        simConnect.subscribeToSystemEvent(Definition.SimStop.ordinal(), "SimStop");
+
+        SCTools.addDefinition(simConnect, Definition.Mk1AircraftState.ordinal(), Mk1AircraftStateDefinition.fields);
+        simConnect.subscribeToSystemEvent(Definition.Mk1AircraftState.ordinal(), "1sec");
+
+        SCTools.addDefinition(simConnect, Definition.MoveAircraft.ordinal(), MoveAircraftDefinition.fields);
+
+        // dispatcher
+        final DispatcherTask dt = new DispatcherTask(simConnect);
+        dt.addOpenHandler(this);
+        dt.addQuitHandler(this);
+        dt.addEventHandler(this);
+        dt.addSimObjectDataTypeHandler(this);
+        dt.addSystemStateHandler(this);
+        dt.addExceptionHandler(this);
+
+        final Thread thread = dt.createThread();
+        thread.start();
+
+        connected = true;
+        Logic.get().whenConnectedToSim();
 
         try {
-            simConnect = new SimConnect("SimWorker", 0);
-
-            simConnect.subscribeToSystemEvent(Definition.SimStart.ordinal(), "SimStart");
-            simConnect.subscribeToSystemEvent(Definition.SimStop.ordinal(), "SimStop");
-
-            SCTools.addDefinition(simConnect, Definition.Mk1AircraftState.ordinal(), Mk1AircraftStateDefinition.fields);
-            simConnect.subscribeToSystemEvent(Definition.Mk1AircraftState.ordinal(), "1sec");
-
-            SCTools.addDefinition(simConnect, Definition.MoveAircraft.ordinal(), MoveAircraftDefinition.fields);
-
-            // dispatcher
-            final DispatcherTask dt = new DispatcherTask(simConnect);
-            dt.addOpenHandler(this);
-            dt.addQuitHandler(this);
-            dt.addEventHandler(this);
-            dt.addSimObjectDataTypeHandler(this);
-            dt.addSystemStateHandler(this);
-            dt.addExceptionHandler(this);
-
-            Thread thread = dt.createThread();
-            thread.start();
-        } catch (IOException | ConfigurationNotFoundException e) {
-            throw new RuntimeException(e);
+            while (!simQuit) {
+                //noinspection BusyWait
+                Thread.sleep(1000);
+            }
+        } finally {
+            connected = false;
+            Logic.get().whenDisconnectedFromSim();
+            dt.tryStop();
         }
     }
 
@@ -95,7 +143,7 @@ public class SimWorker implements EventHandler, OpenHandler, QuitHandler, SimObj
 
     public void handleSimObjectType(SimConnect sender, RecvSimObjectDataByType e) {
         if (e.getRequestID() == Definition.Mk1AircraftState.ordinal()) {
-            Logic.get().newAircraftStateReceived(Mk1AircraftStateDefinition.from(e));
+            Logic.get().whenAircraftStateReceived(Mk1AircraftStateDefinition.from(e));
         }
     }
 

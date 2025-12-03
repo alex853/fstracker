@@ -12,9 +12,11 @@ import java.io.IOException;
 public class Logic {
     private static Logic logic;
 
-    private SimStartupSequence simStartupSequence = SimStartupSequence.NotStarted;
+    private SimStatus simStatus = SimStatus.NotStarted;
     private TrackingState currentState;
-    private SavedAircraft statusToRestore;
+    private SavedAircraft savedAircraftToRestore;
+    private RestorationStatus restorationStatus;
+    private long userConfirmationInitiated;
 
     private Logic() {
 
@@ -33,61 +35,79 @@ public class Logic {
         // noop
     }
 
-    public SimStartupSequence getSimStartupSequence() {
-        return simStartupSequence;
+    public SimStatus getSimStatus() {
+        return simStatus;
     }
 
     public TrackingState getCurrentState() {
         return currentState;
     }
 
-    public Object getStatusToRestore() {
-        return statusToRestore;
+    public Object getSavedAircraftToRestore() {
+        return savedAircraftToRestore;
     }
 
-    public void newAircraftStateReceived(final Mk1AircraftStateDefinition aircraftState) {
+    public void whenConnectedToSim() {
+        simStatus = SimStatus.MainScreen;
+    }
+
+    public void whenDisconnectedFromSim() {
+        simStatus = SimStatus.NotStarted;
+        currentState = null;
+        savedAircraftToRestore = null;
+    }
+
+    public void whenAircraftStateReceived(final Mk1AircraftStateDefinition aircraftState) {
         final TrackingState lastTrackingState = new TrackingState(aircraftState);
 
         if (currentState == null) {
             if (lastTrackingState.inSimulation) {
                 // todo ak1 statusToRestore = loadIfExists(lastTrackingState.title); it is not required?
-                simStartupSequence = SimStartupSequence.FullyReady;
+                // todo ak1 restorationStatus
+                simStatus = SimStatus.FullyReady;
             } else {
-                statusToRestore = loadIfExists(lastTrackingState.title);
-                simStartupSequence = SimStartupSequence.MainScreen;
+                savedAircraftToRestore = loadIfExists(lastTrackingState.title);
+                restorationStatus = savedAircraftToRestore != null ? RestorationStatus.WaitForSimReady : RestorationStatus.NothingToRestore;
+                simStatus = SimStatus.MainScreen;
             }
             currentState = lastTrackingState;
         } else if (currentState.inSimulation != lastTrackingState.inSimulation) {
             if (lastTrackingState.inSimulation) {
-                statusToRestore = loadIfExists(lastTrackingState.title);
-                simStartupSequence = SimStartupSequence.Loading;
+                savedAircraftToRestore = loadIfExists(lastTrackingState.title);
+                restorationStatus = savedAircraftToRestore != null ? RestorationStatus.WaitForSimReady : RestorationStatus.NothingToRestore;
+                simStatus = SimStatus.Loading;
             } else {
                 final SavedAircraft savedAircraftToSave = SavedAircraft.from(currentState);
                 save(savedAircraftToSave);
-                simStartupSequence = SimStartupSequence.MainScreen;
-                statusToRestore = loadIfExists(lastTrackingState.title);
+                simStatus = SimStatus.MainScreen;
+
+                savedAircraftToRestore = loadIfExists(lastTrackingState.title);
+                restorationStatus = RestorationStatus.WaitForSimReady;
             }
             currentState = lastTrackingState;
         } else { // currentState.inSimulation == lastTrackingState.inSimulation
             if (lastTrackingState.inSimulation) {
-                if (statusToRestore != null) {
-                    switch (simStartupSequence) {
+                if (savedAircraftToRestore != null) {
+                    switch (simStatus) {
                         case Loading -> {
                             if (lastTrackingState.aircraft.groundspeed > 0) {
-                                simStartupSequence = SimStartupSequence.ReadyToFly;
+                                simStatus = SimStatus.ReadyToFly;
                             }
                         }
                         case ReadyToFly -> {
                             if (lastTrackingState.aircraft.groundspeed == 0) {
-                                simStartupSequence = SimStartupSequence.FullyReady;
+                                simStatus = SimStatus.FullyReady;
+                                restorationStatus = RestorationStatus.WaitForUserConfirmation;
+                                userConfirmationInitiated = System.currentTimeMillis();
+                                // todo ak0 bring to front
                             }
                         }
                     }
-                    System.out.println("  +++ Sim " + simStartupSequence);
+                    System.out.println("  +++ Sim " + simStatus + " Restoration " + restorationStatus);
 
-                    if (simStartupSequence == SimStartupSequence.FullyReady) {
+                    if (simStatus == SimStatus.FullyReady) {
                         final double distance = Geo.distance(
-                                Geo.coords(statusToRestore.latitude, statusToRestore.longitude),
+                                Geo.coords(savedAircraftToRestore.latitude, savedAircraftToRestore.longitude),
                                 Geo.coords(lastTrackingState.aircraft.latitude, lastTrackingState.aircraft.longitude));
                         if (distance < 0.001) {
                             System.out.println("                          Aircraft is at LAST SEEN POSITION");
@@ -95,13 +115,13 @@ public class Logic {
                             System.out.println("                          Aircraft is " + distance + " nm AWAY from LAST SEEN POSITION");
                             SimWorker.get().moveAircraft(
                                     new MoveAircraftDefinition(
-                                            statusToRestore.latitude,
-                                            statusToRestore.longitude,
-                                            statusToRestore.altitude + 1,
-                                            statusToRestore.heading
+                                            savedAircraftToRestore.latitude,
+                                            savedAircraftToRestore.longitude,
+                                            savedAircraftToRestore.altitude + 1,
+                                            savedAircraftToRestore.heading
                                     ));
                         }
-                        statusToRestore = null;
+                        savedAircraftToRestore = null;
                     }
                 }
 
@@ -109,17 +129,21 @@ public class Logic {
 
             } else { // outside of simulation
                 if (!currentState.title.equals(lastTrackingState.title)) {
-                    statusToRestore = loadIfExists(lastTrackingState.title);
+                    savedAircraftToRestore = loadIfExists(lastTrackingState.title);
                 }
-                simStartupSequence = SimStartupSequence.MainScreen;
+                simStatus = SimStatus.MainScreen;
             }
 
             currentState = lastTrackingState;
         }
     }
 
-    public enum SimStartupSequence {
+    public enum SimStatus {
         NotStarted, MainScreen, Loading, ReadyToFly, FullyReady
+    }
+
+    public enum RestorationStatus {
+        NothingToRestore, WaitForSimReady, WaitForUserConfirmation
     }
 
     public static class TrackingState {
@@ -158,11 +182,15 @@ public class Logic {
         }
     }
 
+    private static File makeFile(final String title) {
+        return new File(System.getenv("LOCALAPPDATA") + "/simforge.net/Parked Aircraft/" + title + ".json");
+    }
+
     private static void save(final SavedAircraft savedAircraft) {
         final Gson gson = new GsonBuilder().setPrettyPrinting().create();
         final String json = gson.toJson(savedAircraft);
         try {
-            final File file = new File("Parked Aircraft/" + savedAircraft.title + ".json");
+            final File file = makeFile(savedAircraft.title);
             file.getParentFile().mkdirs();
             IOHelper.saveFile(file, json);
         } catch (IOException e) {
@@ -170,8 +198,8 @@ public class Logic {
         }
     }
 
-    private static SavedAircraft loadIfExists(String title) {
-        final File file = new File("Parked Aircraft/" + title + ".json");
+    private static SavedAircraft loadIfExists(final String title) {
+        final File file = makeFile(title);
         if (!file.exists()) {
             return null;
         }

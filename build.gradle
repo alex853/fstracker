@@ -1,6 +1,8 @@
 
 plugins {
     id "application"
+    id "java"
+    id "com.github.johnrengelman.shadow" version "7.1.2"
 }
 
 version '1.0-SNAPSHOT'
@@ -42,4 +44,30 @@ dependencies {
     implementation 'com.google.code.gson:gson:2.9.1'
     
     testImplementation 'junit:junit:4.13.2'
+}
+
+shadowJar {
+    archiveBaseName.set("PackedAircraft")
+    archiveClassifier.set("")
+    archiveVersion.set("1.0")
+}
+
+tasks.register("jpackageExe", Exec) {
+    dependsOn shadowJar
+
+    def shadowJarFile = "${buildDir}/libs/PackedAircraft-1.0.jar"
+    def outputDir = "${buildDir}/installer"
+
+    doFirst {
+        mkdir(outputDir)
+    }
+
+    commandLine 'jpackage',
+            '--type', 'app-image',
+            '--input', "${buildDir}/libs",
+            '--main-jar', shadowJarFile,
+            '--main-class', 'net.simforge.parkedaircraft2.ParkedAircraft',
+            '--name', 'ParkedAircraft',
+//            '--win-console',
+            '--dest', outputDir
 }

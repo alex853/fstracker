@@ -2,8 +2,13 @@ package net.simforge.parkedaircraft2;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 public class MainFrame extends JFrame {
+
+    private TrayIcon trayIcon;
+
     private JLabel simConnectLabel;
     private JLabel simStatusLabel;
     private JLabel inSimStatusLabel;
@@ -14,7 +19,6 @@ public class MainFrame extends JFrame {
     public MainFrame() throws HeadlessException {
         setTitle("Parked Aircraft");
         setSize(400, 300);
-        setDefaultCloseOperation(EXIT_ON_CLOSE);
 
         // ---- UI setup ----
         setLayout(new GridLayout(0, 1));
@@ -33,6 +37,15 @@ public class MainFrame extends JFrame {
         add(statusToRestoreLabel);
         add(parkingStatusLabel);
 
+        initTray();
+
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                hideToTray();
+            }
+        });
+
         setVisible(true);
 
         Timer timer = new Timer(200, e -> updateUi());
@@ -45,18 +58,65 @@ public class MainFrame extends JFrame {
         final Logic.TrackingState currentState = logic.getCurrentState();
         final String title = currentState != null ? currentState.title : "n/a";
         final String inSimStatus = currentState != null ? (currentState.inSimulation ? "YES" : "NO") : "n/a";
-        final String parkingStatus = logic.getSimStartupSequence() == Logic.SimStartupSequence.FullyReady
+        final String parkingStatus = logic.getSimStatus() == Logic.SimStatus.FullyReady
                 && currentState != null ?
                 ("Parking status: " + (currentState.aircraft.onGround == 1 ? "On Ground   " : "") +
                         (currentState.aircraft.parkingBrake == 1 ? "Parking Brake SET   " : "") +
                         (currentState.aircraft.eng1running == 0 ? "Eng 1 OFF" : ""))
                 : "";
 
-        // todo ak sim connect status
-        simStatusLabel.setText("SIM STATUS: " + logic.getSimStartupSequence());
+        simConnectLabel.setText("SIM CONNECT: " + (SimWorker.get().isConnected() ? "Connected" : "Disconnected"));
+        simStatusLabel.setText("SIM STATUS: " + logic.getSimStatus());
         inSimStatusLabel.setText("IN SIM: " + inSimStatus);
         aircraftTitleLabel.setText("Aircraft: " + title);
-        statusToRestoreLabel.setText((logic.getStatusToRestore() != null ? "THERE IS SAVED STATUS TO RESTORE" : ""));
+        statusToRestoreLabel.setText((logic.getSavedAircraftToRestore() != null ? "THERE IS SAVED STATUS TO RESTORE" : ""));
         parkingStatusLabel.setText(parkingStatus);
+    }
+
+    private void initTray() {
+        if (!SystemTray.isSupported()) {
+            System.out.println("SystemTray not supported");
+            return;
+        }
+
+        SystemTray tray = SystemTray.getSystemTray();
+
+        Image image = Toolkit.getDefaultToolkit().getImage(
+                MainFrame.class.getResource("/radiolocator.png")
+        );
+
+        PopupMenu popupMenu = new PopupMenu();
+
+        MenuItem showItem = new MenuItem("Show");
+        showItem.addActionListener(e -> restoreFromTray());
+        popupMenu.add(showItem);
+
+        MenuItem exitItem = new MenuItem("Exit");
+        exitItem.addActionListener(e -> {
+            tray.remove(trayIcon);
+            System.exit(0);
+        });
+        popupMenu.add(exitItem);
+
+        trayIcon = new TrayIcon(image, "Parked Aircraft", popupMenu);
+        trayIcon.setImageAutoSize(true);
+
+        trayIcon.addActionListener(e -> restoreFromTray());
+
+        try {
+            tray.add(trayIcon);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void hideToTray() {
+        setVisible(false);
+    }
+
+    private void restoreFromTray() {
+        setVisible(true);
+        setExtendedState(JFrame.NORMAL);
+        toFront();
     }
 }
