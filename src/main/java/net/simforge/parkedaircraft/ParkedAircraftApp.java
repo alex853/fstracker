@@ -141,9 +141,6 @@ public class ParkedAircraftApp {
                             savedAircraft[0] = null;
                         }
                     }
-
-                    // todo ak if aircraft just parked and engine off, then save it
-
                 } else { // outside of simulation
 
                     if (!currentState[0].title.equals(instantTrackingState.title)) {

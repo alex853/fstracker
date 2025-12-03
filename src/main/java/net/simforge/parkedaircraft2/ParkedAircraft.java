@@ -21,6 +21,8 @@ import java.io.IOException;
 // todo ak2 non-resizable frame
 // todo ak3 FLT-movement support
 // todo ak3 refueling workflow with truck, time simulation, etc
+// todo ak3 integrate tracking code into the app, rename it into fs-tracker?
+// todo ak3
 public class ParkedAircraft {
 
     public static void main(String[] args) throws IOException, ConfigurationNotFoundException {
