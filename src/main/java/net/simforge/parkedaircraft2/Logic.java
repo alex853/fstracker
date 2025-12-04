@@ -8,16 +8,16 @@ import net.simforge.commons.misc.Geo;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class Logic {
     public static final double SAVED_POSITION_DELTA = 0.001;
     private static Logic logic;
 
-    private volatile SimStatus simStatus = SimStatus.NotStarted;
-    private volatile TrackingState currentState;
-    private volatile RestorationStatus restorationStatus = RestorationStatus.NothingToRestore;
-    private volatile SavedAircraft savedAircraftToRestore;
-    private long userConfirmationInitiated;
+    private BlockingQueue<Runnable> queue = new LinkedBlockingQueue<>();
+    private volatile boolean stopped = false;
+    private volatile State state = State.brandNew();
 
     private Logic() {
 
@@ -33,125 +33,132 @@ public class Logic {
     }
 
     public void start() {
-        // noop
-    }
+        final Thread thread = new Thread(() -> {
+            while (!stopped) {
+                final Runnable action;
+                try {
+                    action = queue.take();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException("interrupted", e);
+                }
 
-    public SimStatus getSimStatus() {
-        return simStatus;
-    }
-
-    public TrackingState getCurrentState() {
-        return currentState;
-    }
-
-    public RestorationStatus getRestorationStatus() {
-        return restorationStatus;
-    }
-
-    public synchronized void whenConnectedToSim() {
-        simStatus = SimStatus.MainScreen;
-    }
-
-    public synchronized void whenDisconnectedFromSim() {
-        simStatus = SimStatus.NotStarted;
-        currentState = null;
-        savedAircraftToRestore = null;
-    }
-
-    public synchronized void whenAircraftStateReceived(final Mk1AircraftStateDefinition aircraftState) {
-        final TrackingState lastTrackingState = new TrackingState(aircraftState);
-
-        if (currentState == null) {
-            if (lastTrackingState.inSimulation) {
-                savedAircraftToRestore = loadIfExists(lastTrackingState.title);
-                restorationStatus = savedAircraftToRestore != null ? RestorationStatus.WaitForUserConfirmation : RestorationStatus.NothingToRestore;
-                simStatus = SimStatus.FullyReady;
-            } else {
-                savedAircraftToRestore = loadIfExists(lastTrackingState.title);
-                restorationStatus = savedAircraftToRestore != null ? RestorationStatus.WaitForSimReady : RestorationStatus.NothingToRestore;
-                simStatus = SimStatus.MainScreen;
-            }
-            currentState = lastTrackingState;
-        } else if (currentState.inSimulation != lastTrackingState.inSimulation) {
-            if (lastTrackingState.inSimulation) {
-                savedAircraftToRestore = loadIfExists(lastTrackingState.title);
-                restorationStatus = savedAircraftToRestore != null ? RestorationStatus.WaitForSimReady : RestorationStatus.NothingToRestore;
-                simStatus = SimStatus.Loading;
-            } else {
-                if (restorationStatus != RestorationStatus.NothingToRestore) {
-                    final SavedAircraft savedAircraftToSave = SavedAircraft.from(currentState);
-                    save(savedAircraftToSave);
-                    simStatus = SimStatus.MainScreen;
-
-                    savedAircraftToRestore = loadIfExists(lastTrackingState.title);
-                    restorationStatus = RestorationStatus.WaitForSimReady;
+                synchronized (Logic.this) {
+                    action.run();
                 }
             }
-            currentState = lastTrackingState;
-        } else { // currentState.inSimulation == lastTrackingState.inSimulation
-            if (lastTrackingState.inSimulation) {
-                if (savedAircraftToRestore != null) {
-                    switch (simStatus) {
-                        case Loading -> {
-                            if (lastTrackingState.aircraft.groundspeed > 0) {
-                                simStatus = SimStatus.ReadyToFly;
+        }, "LogicThread");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    public State getState() {
+        return state;
+    }
+
+    public void whenConnectedToSim() {
+        queue.add(() -> {
+            state = state.setSimStatus(SimStatus.MainScreen);
+        });
+    }
+
+    public void whenDisconnectedFromSim() {
+        queue.add(() -> {
+            state = state.setSimStatus(SimStatus.NotStarted)
+                    .setTrackingState(null)
+                    .setSavedAircraftToRestore(null);
+        });
+    }
+
+    public void whenAircraftStateReceived(final Mk1AircraftStateDefinition aircraftState) {
+        queue.add(() -> {
+            SimStatus newSimStatus = state.simStatus;
+            TrackingState newTrackingState = new TrackingState(aircraftState);
+            RestorationStatus newRestorationStatus = state.restorationStatus;
+            SavedAircraft newSavedAircraftToRestore = state.savedAircraftToRestore;
+
+            if (state.trackingState == null) {
+                if (newTrackingState.inSimulation) {
+                    newSavedAircraftToRestore = loadIfExists(newTrackingState.title);
+                    newRestorationStatus = newSavedAircraftToRestore != null ? RestorationStatus.WaitForUserConfirmation : RestorationStatus.NothingToRestore;
+                    newSimStatus = SimStatus.FullyReady;
+                } else {
+                    newSavedAircraftToRestore = loadIfExists(newTrackingState.title);
+                    newRestorationStatus = newSavedAircraftToRestore != null ? RestorationStatus.WaitForSimReady : RestorationStatus.NothingToRestore;
+                    newSimStatus = SimStatus.MainScreen;
+                }
+            } else if (state.trackingState.inSimulation != newTrackingState.inSimulation) {
+                if (newTrackingState.inSimulation) {
+                    newSavedAircraftToRestore = loadIfExists(newTrackingState.title);
+                    newRestorationStatus = newSavedAircraftToRestore != null ? RestorationStatus.WaitForSimReady : RestorationStatus.NothingToRestore;
+                    newSimStatus = SimStatus.Loading;
+                } else { // user quits from simulation
+                    if (state.restorationStatus == RestorationStatus.NothingToRestore) {
+                        final SavedAircraft savedAircraftToSave = SavedAircraft.from(state.trackingState);
+                        save(savedAircraftToSave);
+                    }
+
+                    newSavedAircraftToRestore = loadIfExists(newTrackingState.title);
+                    newRestorationStatus = RestorationStatus.WaitForSimReady;
+                    newSimStatus = SimStatus.MainScreen;
+                }
+            } else { // currentState.inSimulation == newTrackingState.inSimulation
+                if (newTrackingState.inSimulation) {
+                    if (state.savedAircraftToRestore != null) {
+                        switch (state.simStatus) {
+                            case Loading -> {
+                                if (newTrackingState.aircraft.groundspeed > 0) {
+                                    newSimStatus = SimStatus.ReadyToFly;
+                                }
                             }
-                        }
-                        case ReadyToFly -> {
-                            if (lastTrackingState.aircraft.groundspeed == 0) {
-                                simStatus = SimStatus.FullyReady;
-                                restorationStatus = RestorationStatus.WaitForUserConfirmation;
-                                userConfirmationInitiated = System.currentTimeMillis();
-                                // todo ak0 bring to front
+                            case ReadyToFly -> {
+                                if (newTrackingState.aircraft.groundspeed == 0) {
+                                    newSimStatus = SimStatus.FullyReady;
+                                    newRestorationStatus = RestorationStatus.WaitForUserConfirmation;
+                                    //newUserConfirmationInitiated = System.currentTimeMillis();
+                                    // todo ak0 bring to front
+                                }
                             }
                         }
                     }
-                }
 
-                // todo ak0 if aircraft just parked and engine off, then save it
+                    // todo ak0 if aircraft just parked and engine off, then save it
 
-            } else { // outside of simulation
-                if (!currentState.title.equals(lastTrackingState.title)) {
-                    savedAircraftToRestore = loadIfExists(lastTrackingState.title);
+                } else { // outside of simulation
+                    if (!state.trackingState.title.equals(newTrackingState.title)) {
+                        newSavedAircraftToRestore = loadIfExists(newTrackingState.title);
+                    }
+                    newSimStatus = SimStatus.MainScreen;
                 }
-                simStatus = SimStatus.MainScreen;
             }
 
-            currentState = lastTrackingState;
-        }
+            state = state.setSimStatus(newSimStatus)
+                    .setTrackingState(newTrackingState)
+                    .setRestorationStatus(newRestorationStatus)
+                    .setSavedAircraftToRestore(newSavedAircraftToRestore);
+        });
     }
 
-    public synchronized void whenUserRestores() {
-        // todo ak0 checks
-        SimWorker.get().moveAircraft(
-                new MoveAircraftDefinition(
-                        savedAircraftToRestore.latitude,
-                        savedAircraftToRestore.longitude,
-                        savedAircraftToRestore.altitude + 1,
-                        savedAircraftToRestore.heading
-                ));
+    public void whenUserRestores() {
+        queue.add(() -> {
+            // todo ak0 checks
+            SimWorker.get().moveAircraft(
+                    new MoveAircraftDefinition(
+                            state.savedAircraftToRestore.latitude,
+                            state.savedAircraftToRestore.longitude,
+                            state.savedAircraftToRestore.altitude + 1,
+                            state.savedAircraftToRestore.heading
+                    ));
 
-        restorationStatus = RestorationStatus.NothingToRestore;
-        savedAircraftToRestore = null;
+            state = state.setRestorationStatus(RestorationStatus.NothingToRestore)
+                    .setSavedAircraftToRestore(null);
+        });
     }
 
-    public synchronized void whenUserCancelsRestoration() {
-        restorationStatus = RestorationStatus.NothingToRestore;
-        savedAircraftToRestore = null;
-    }
-
-    public synchronized double getDistanceToSavedPosition() {
-        if (savedAircraftToRestore == null || !currentState.inSimulation) {
-            return Double.NaN;
-        }
-
-        return Geo.distance(
-                Geo.coords(savedAircraftToRestore.latitude, savedAircraftToRestore.longitude),
-                Geo.coords(currentState.aircraft.latitude, currentState.aircraft.longitude));
-    }
-
-    public synchronized boolean isAircraftAtToSavedPosition() {
-        return getDistanceToSavedPosition() < SAVED_POSITION_DELTA;
+    public void whenUserCancelsRestoration() {
+        queue.add(() -> {
+            state = state.setRestorationStatus(RestorationStatus.NothingToRestore)
+                    .setSavedAircraftToRestore(null);
+        });
     }
 
     public enum SimStatus {
@@ -160,6 +167,81 @@ public class Logic {
 
     public enum RestorationStatus {
         NothingToRestore, WaitForSimReady, WaitForUserConfirmation
+    }
+
+    public static class State {
+        private final SimStatus simStatus;
+        private final TrackingState trackingState;
+        private final RestorationStatus restorationStatus;
+        private final SavedAircraft savedAircraftToRestore;
+        private final long userConfirmationInitiated = 0; // todo ak1
+
+        private State() {
+            this.simStatus = SimStatus.NotStarted;
+            this.trackingState = null;
+            this.restorationStatus = RestorationStatus.NothingToRestore;
+            this.savedAircraftToRestore = null;
+        }
+
+        private State(final SimStatus simStatus,
+                      final TrackingState trackingState,
+                      final RestorationStatus restorationStatus,
+                      final SavedAircraft savedAircraftToRestore) {
+            this.simStatus = simStatus;
+            this.trackingState = trackingState;
+            this.restorationStatus = restorationStatus;
+            this.savedAircraftToRestore = savedAircraftToRestore;
+        }
+
+        public static State brandNew() {
+            return new State();
+        }
+
+        public SimStatus getSimStatus() {
+            return simStatus;
+        }
+
+        public State setSimStatus(final SimStatus simStatus) {
+            return new State(simStatus, trackingState, restorationStatus, savedAircraftToRestore);
+        }
+
+        public TrackingState getTrackingState() {
+            return trackingState;
+        }
+
+        public State setTrackingState(TrackingState trackingState) {
+            return new State(simStatus, trackingState, restorationStatus, savedAircraftToRestore);
+        }
+
+        public RestorationStatus getRestorationStatus() {
+            return restorationStatus;
+        }
+
+        public State setRestorationStatus(RestorationStatus restorationStatus) {
+            return new State(simStatus, trackingState, restorationStatus, savedAircraftToRestore);
+        }
+
+        public SavedAircraft getSavedAircraftToRestore() {
+            return savedAircraftToRestore;
+        }
+
+        public State setSavedAircraftToRestore(SavedAircraft savedAircraftToRestore) {
+            return new State(simStatus, trackingState, restorationStatus, savedAircraftToRestore);
+        }
+
+        public double getDistanceToSavedPosition() {
+            if (savedAircraftToRestore == null || !trackingState.inSimulation) {
+                return Double.NaN;
+            }
+
+            return Geo.distance(
+                    Geo.coords(savedAircraftToRestore.latitude, savedAircraftToRestore.longitude),
+                    Geo.coords(trackingState.aircraft.latitude, trackingState.aircraft.longitude));
+        }
+
+        public boolean isAircraftAtToSavedPosition() {
+            return getDistanceToSavedPosition() < SAVED_POSITION_DELTA;
+        }
     }
 
     public static class TrackingState {

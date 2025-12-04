@@ -3,6 +3,7 @@ package net.simforge.parkedaircraft2;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -13,10 +14,8 @@ public class MainFrame extends JFrame {
 
     private JLabel simConnectLabel;
     private JLabel simStatusLabel;
-    private JLabel inSimStatusLabel;
     private JLabel aircraftTitleLabel;
     private JLabel statusToRestoreLabel;
-    private JLabel parkingStatusLabel;
     private JLabel simPositionCaptionLabel;
     private JLabel savedPositionCaptionLabel;
     private JLabel simPositionIcaoLabel;
@@ -24,6 +23,8 @@ public class MainFrame extends JFrame {
     private JLabel distanceLabel;
     private JButton restoreButton;
     private JButton cancelButton;
+    private JLabel inSimStatusLabel;
+    private JLabel parkingStatusLabel;
 
     public MainFrame() throws HeadlessException {
         setTitle("Parked Aircraft");
@@ -31,7 +32,7 @@ public class MainFrame extends JFrame {
 
         buildUi();
 
-        initTray();
+//        initTray();
 
         addWindowListener(new WindowAdapter() {
             @Override
@@ -47,27 +48,23 @@ public class MainFrame extends JFrame {
     }
 
     private void buildUi() {
-        setLayout(new MigLayout("", "[25%][25%][25%][25%]", "[][][][][][][][]"));
+        setLayout(new MigLayout("insets 0, gap 0", "[25%][25%][25%][25%]", "[][][][][][][][]"));
 
         simConnectLabel = addCmp(new JLabel("SIM CONNECT", SwingConstants.CENTER), "cell 0 0 2 1, growx, align center");
         simStatusLabel = addCmp(new JLabel("SIM STATUS", SwingConstants.CENTER), "cell 2 0 2 1, growx, align center");
 
-        inSimStatusLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 1 4 1, growx, align center");
+        addCmp(new JLabel("Aircraft", SwingConstants.CENTER), "cell 0 1, growx, align center");
+        aircraftTitleLabel = addCmp(new JLabel("", SwingConstants.LEFT), "cell 1 1 3 1, growx, align left");
 
-        addCmp(new JLabel("Aircraft", SwingConstants.CENTER), "cell 0 2, growx, align center");
-        aircraftTitleLabel = addCmp(new JLabel("", SwingConstants.LEFT), "cell 1 2 3 1, growx, align left");
+        statusToRestoreLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 2 4 1, growx, align center");
 
-        statusToRestoreLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 3 4 1, growx, align center");
+        simPositionCaptionLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 3 2 1, growx, align center");
+        savedPositionCaptionLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 2 3 2 1, growx, align center");
 
-        parkingStatusLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 4 4 1, growx, align center");
+        simPositionIcaoLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 4 2 1, growx, align center");
+        savedPositionIcaoLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 2 4 2 1, growx, align center");
 
-        simPositionCaptionLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 5 2 1, growx, align center");
-        savedPositionCaptionLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 2 5 2 1, growx, align center");
-
-        simPositionIcaoLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 6 2 1, growx, align center");
-        savedPositionIcaoLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 2 6 2 1, growx, align center");
-
-        distanceLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 7 4 1, growx, align center");
+        distanceLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 5 4 1, growx, align center");
 
         restoreButton = new JButton("Restore");
         restoreButton.addActionListener(e -> restoreAction());
@@ -78,16 +75,27 @@ public class MainFrame extends JFrame {
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
         buttonPanel.add(restoreButton);
         buttonPanel.add(cancelButton);
-        add(buttonPanel, "cell 0 8 4 1, growx, align center");
+        add(buttonPanel, "cell 0 6 4 1, growx, align center");
+
+        inSimStatusLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 7 4 1, growx, align center");
+        inSimStatusLabel.setBackground(Color.LIGHT_GRAY);
+
+        parkingStatusLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 8 4 1, growx, align center");
+        parkingStatusLabel.setBackground(Color.LIGHT_GRAY);
     }
 
     private void updateUi() {
-        final Logic logic = Logic.get();
+        final Logic.State state = Logic.get().getState();
 
-        final Logic.TrackingState currentState = logic.getCurrentState();
+        final Logic.SimStatus simStatus = state.getSimStatus();
+
+        final Logic.TrackingState currentState = state.getTrackingState();
         final String title = currentState != null ? currentState.title : "n/a";
         final String inSimStatus = currentState != null ? (currentState.inSimulation ? "YES" : "NO") : "n/a";
-        final String parkingStatus = logic.getSimStatus() == Logic.SimStatus.FullyReady
+
+        final Logic.RestorationStatus restorationStatus = state.getRestorationStatus();
+
+        final String parkingStatus = simStatus == Logic.SimStatus.FullyReady
                 && currentState != null ?
                 ("Parking status: " + (currentState.aircraft.onGround == 1 ? "On Ground   " : "") +
                         (currentState.aircraft.parkingBrake == 1 ? "Parking Brake SET   " : "") +
@@ -102,8 +110,8 @@ public class MainFrame extends JFrame {
             simConnectLabel.setText("SimConnect: Disconnected");
         }
 
-        simStatusLabel.setText("Sim: " + logic.getSimStatus());
-        simStatusLabel.setBackground(switch (logic.getSimStatus()) {
+        simStatusLabel.setText("Sim: " + simStatus);
+        simStatusLabel.setBackground(switch (simStatus) {
             case NotStarted -> Color.LIGHT_GRAY;
             case MainScreen, Loading -> Color.ORANGE;
             case ReadyToFly, FullyReady -> Color.GREEN;
@@ -112,7 +120,7 @@ public class MainFrame extends JFrame {
         inSimStatusLabel.setText("IN SIM: " + inSimStatus);
         aircraftTitleLabel.setText(title);
 
-        switch (logic.getRestorationStatus()) {
+        switch (restorationStatus) {
             case NothingToRestore -> {
                 statusToRestoreLabel.setText("");
                 simPositionCaptionLabel.setText("");
@@ -129,9 +137,9 @@ public class MainFrame extends JFrame {
                 savedPositionCaptionLabel.setText("Saved Position");
                 simPositionIcaoLabel.setText("ICAO");
                 savedPositionIcaoLabel.setText("ICAO");
-                distanceLabel.setText(formatDistance());
+                distanceLabel.setText(formatDistance(state));
 
-                if (!Logic.get().isAircraftAtToSavedPosition() && Logic.get().getRestorationStatus() == Logic.RestorationStatus.WaitForUserConfirmation) {
+                if (!state.isAircraftAtToSavedPosition() && restorationStatus == Logic.RestorationStatus.WaitForUserConfirmation) {
                     restoreButton.setVisible(true);
                     cancelButton.setVisible(true);
                 } else {
@@ -201,15 +209,16 @@ public class MainFrame extends JFrame {
     private <T extends JComponent> T addCmp(final T component, final String migParams) {
         add(component, migParams);
         component.setOpaque(true);
+        component.setBorder(new EmptyBorder(6, 8, 6, 8));
         return component;
     }
 
-    private String formatDistance() {
-        if (Logic.get().isAircraftAtToSavedPosition()) {
+    private String formatDistance(final Logic.State state) {
+        if (state.isAircraftAtToSavedPosition()) {
             return "At saved position";
         }
 
-        final double distance = Logic.get().getDistanceToSavedPosition();
+        final double distance = state.getDistanceToSavedPosition();
         if (distance > 10) {
             return (int) distance + " nm away";
         } else if (distance >= 0.1) {

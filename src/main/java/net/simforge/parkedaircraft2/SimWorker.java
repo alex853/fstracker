@@ -24,9 +24,10 @@ public class SimWorker implements EventHandler, OpenHandler, QuitHandler, SimObj
     private static SimWorker simWorker;
 
     private boolean started;
+    private SimConnect simConnect;
+
     private volatile boolean connected;
     private volatile boolean simQuit;
-    private SimConnect simConnect;
 
     private SimWorker() {
 
@@ -157,7 +158,7 @@ public class SimWorker implements EventHandler, OpenHandler, QuitHandler, SimObj
         log.error("recvException = " + e + ", " + e.getException());
     }
 
-    public void moveAircraft(final MoveAircraftDefinition moveAircraft) { // todo ak0 queue!!
+    public void moveAircraft(final MoveAircraftDefinition moveAircraft) {
         try {
             final byte[] bytes = new byte[32];
             final ByteBuffer buf = ByteBuffer.wrap(bytes);
