@@ -32,7 +32,7 @@ public class MainFrame extends JFrame {
 
         buildUi();
 
-//        initTray();
+        initTray();
 
         addWindowListener(new WindowAdapter() {
             @Override

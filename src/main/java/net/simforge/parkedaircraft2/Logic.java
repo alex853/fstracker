@@ -15,9 +15,9 @@ public class Logic {
     public static final double SAVED_POSITION_DELTA = 0.001;
     private static Logic logic;
 
-    private BlockingQueue<Runnable> queue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<Runnable> queue = new LinkedBlockingQueue<>();
     private volatile boolean stopped = false;
-    private volatile State state = State.brandNew();
+    private State state = State.brandNew();
 
     private Logic() {
 
@@ -51,7 +51,7 @@ public class Logic {
         thread.start();
     }
 
-    public State getState() {
+    public synchronized State getState() {
         return state;
     }
 

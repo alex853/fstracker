@@ -8,6 +8,7 @@ import java.io.IOException;
 
 // todo ak0 implement icao codes
 // todo ak0 bring form to front
+// todo ak0 when simulator starts, and it is in main screen, sim position should not be shown on the screen
 // todo ak0 fuel support
 // todo ak1 improved look-and-feel
 // todo ak1 another icon
@@ -20,6 +21,7 @@ import java.io.IOException;
 // todo ak3 FLT-movement support
 // todo ak3 refueling workflow with truck, time simulation, etc
 // todo ak3 integrate tracking code into the app, rename it into fs-tracker?
+// todo ak3 remove 'test message'
 public class ParkedAircraft {
 
     public static void main(String[] args) throws IOException, ConfigurationNotFoundException {
