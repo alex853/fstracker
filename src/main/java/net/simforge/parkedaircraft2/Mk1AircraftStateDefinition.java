@@ -40,6 +40,10 @@ public class Mk1AircraftStateDefinition {
         this.eng1running = eng1running;
     }
 
+    public boolean isOnGround() {
+        return onGround == 1;
+    }
+
     public static Mk1AircraftStateDefinition from(final RecvSimObjectDataByType received) {
         final SimState simState = SCTools.readSimState(received,
                 Mk1AircraftStateDefinition.fields);

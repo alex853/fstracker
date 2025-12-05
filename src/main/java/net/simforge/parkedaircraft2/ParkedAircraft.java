@@ -6,13 +6,13 @@ import javax.swing.*;
 import java.awt.*;
 import java.io.IOException;
 
-// todo ak if simulator is available then show sim position and this will change dynamically
-// todo ak if saved state is available then show saved state info
-// todo ak when simulator starts, and it is in main screen, sim position should not be shown on the screen
-// todo ak when aircraft is flying, show sim position dynamically changing and do not show saved position
-// todo ak0 bring form to front when simulator becomes loaded
+// todo ak 'no saved status found' does not reflect actual status
+// todo ak bring form to front when simulator becomes loaded
 // todo ak0 fuel support
-// todo ak1 do not save when aircraft is flying
+// todo ak0 'loading' state does not work well
+// todo ak0 test how loading sequence works in case of loading on parking
+// todo ak0 test how loading sequence works in case of loading in air
+// todo ak1 do not save when aircraft is flying - todo ak1 saving condition
 // todo ak1 do not save if aircraft has not been landed before
 // todo ak1 do not restore if aircraft is loaded flying
 // todo ak1 improved look-and-feel

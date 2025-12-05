@@ -109,7 +109,7 @@ public class MainFrame extends JFrame {
 
         final String parkingStatus = simStatus == Logic.SimStatus.FullyReady
                 && currentState != null ?
-                ("Parking status: " + (currentState.aircraft.onGround == 1 ? "On Ground   " : "") +
+                ("Parking status: " + (currentState.aircraft.isOnGround() ? "On Ground   " : "") +
                         (currentState.aircraft.parkingBrake == 1 ? "Parking Brake SET   " : "") +
                         (currentState.aircraft.eng1running == 0 ? "Eng 1 OFF" : ""))
                 : "";
@@ -129,37 +129,57 @@ public class MainFrame extends JFrame {
             case ReadyToFly, FullyReady -> Color.GREEN;
         });
 
-        inSimStatusLabel.setText("IN SIM: " + inSimStatus);
         aircraftTitleLabel.setText(title);
 
-        switch (restorationStatus) {
-            case NothingToRestore -> {
-                statusToRestoreLabel.setText("");
-                simPositionCaptionLabel.setText("");
-                savedPositionCaptionLabel.setText("");
-                simPositionIcaoLabel.setText("");
-                savedPositionIcaoLabel.setText("");
-                distanceLabel.setText("");
-                restoreButton.setVisible(false);
-                cancelButton.setVisible(false);
-            }
-            case WaitForSimReady, WaitForUserConfirmation -> {
-                statusToRestoreLabel.setText("THERE IS SAVED STATUS TO RESTORE");
-                simPositionCaptionLabel.setText("Sim Position");
-                savedPositionCaptionLabel.setText("Saved Position");
-                simPositionIcaoLabel.setText(findIcao(state.getTrackingState().aircraft.latitude, state.getTrackingState().aircraft.longitude));
-                savedPositionIcaoLabel.setText(findIcao(state.getSavedAircraftToRestore().latitude, state.getSavedAircraftToRestore().longitude));
-                distanceLabel.setText(formatDistance(state));
+        final boolean showSavedPosition = switch (restorationStatus) {
+            case NothingToRestore -> false;
+            case WaitForSimReady, WaitForUserConfirmation -> true;
+        };
 
-                if (!state.isAircraftAtToSavedPosition() && restorationStatus == Logic.RestorationStatus.WaitForUserConfirmation) {
-                    restoreButton.setVisible(true);
-                    cancelButton.setVisible(true);
-                } else {
-                    restoreButton.setVisible(false);
-                    cancelButton.setVisible(false);
-                }
-            }
+        if (showSavedPosition) {
+            statusToRestoreLabel.setText("THERE IS SAVED STATUS TO RESTORE");
+            savedPositionCaptionLabel.setText("Saved Position");
+            savedPositionIcaoLabel.setText(findIcao(state.getSavedAircraftToRestore().latitude, state.getSavedAircraftToRestore().longitude));
+        } else {
+            statusToRestoreLabel.setText("no saved status found");
+            savedPositionCaptionLabel.setText("");
+            savedPositionIcaoLabel.setText("");
         }
+
+        final boolean showSimPosition = switch (simStatus) {
+            default -> false;
+            case ReadyToFly, FullyReady -> true;
+        };
+
+        if (showSimPosition) {
+            simPositionCaptionLabel.setText("Sim Position");
+            if (state.getTrackingState().aircraft.isOnGround()) {
+                simPositionIcaoLabel.setText(findIcao(state.getTrackingState().aircraft.latitude, state.getTrackingState().aircraft.longitude));
+            } else {
+                simPositionIcaoLabel.setText("Flying");
+            }
+        } else {
+            simPositionCaptionLabel.setText("");
+            simPositionIcaoLabel.setText("");
+        }
+
+        if (showSimPosition && showSavedPosition) {
+            distanceLabel.setText(formatDistance(state));
+        } else {
+            distanceLabel.setText("");
+        }
+
+        if (showSavedPosition
+                && !state.isAircraftAtToSavedPosition()
+                && restorationStatus == Logic.RestorationStatus.WaitForUserConfirmation) {
+            restoreButton.setVisible(true);
+            cancelButton.setVisible(true);
+        } else {
+            restoreButton.setVisible(false);
+            cancelButton.setVisible(false);
+        }
+
+        inSimStatusLabel.setText("IN SIM: " + inSimStatus);
         parkingStatusLabel.setText(parkingStatus);
     }
 
@@ -242,6 +262,6 @@ public class MainFrame extends JFrame {
 
     private String findIcao(double lat, double lon) {
         OurAirportsIndex.AirportAndDistance nearest = airportsIndex.findNearestIcaoIndexed(lat, lon);
-        return nearest != null && nearest.distance < 10 ? nearest.airport.icao : "n/a";
+        return nearest != null && nearest.distance < 3 ? nearest.airport.icao : "n/a";
     }
 }

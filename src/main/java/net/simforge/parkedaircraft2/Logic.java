@@ -92,7 +92,7 @@ public class Logic {
                     newRestorationStatus = newSavedAircraftToRestore != null ? RestorationStatus.WaitForSimReady : RestorationStatus.NothingToRestore;
                     newSimStatus = SimStatus.Loading;
                 } else { // user quits from simulation
-                    if (state.restorationStatus == RestorationStatus.NothingToRestore) {
+                    if (state.restorationStatus == RestorationStatus.NothingToRestore && state.trackingState.aircraft.isOnGround()) { // todo ak1 saving condition
                         final SavedAircraft savedAircraftToSave = SavedAircraft.from(state.trackingState);
                         save(savedAircraftToSave);
                     }
@@ -121,7 +121,14 @@ public class Logic {
                         }
                     }
 
-                    // todo ak0 if aircraft just parked and engine off, then save it
+                    if (newRestorationStatus == RestorationStatus.WaitForUserConfirmation) {
+                        if (!newTrackingState.aircraft.isOnGround()) {
+                            newSavedAircraftToRestore = null;
+                            newRestorationStatus = RestorationStatus.NothingToRestore;
+                        }
+                    }
+
+                    // todo ak1 saving condition - if aircraft just parked and engine off, then save it
 
                 } else { // outside of simulation
                     if (!state.trackingState.title.equals(newTrackingState.title)) {
