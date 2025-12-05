@@ -6,9 +6,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.io.IOException;
 
-// todo ak 'no saved status found' does not reflect actual status
-// todo ak bring form to front when simulator becomes loaded
-// todo ak0 fuel support
+// todo ak fuel support
 // todo ak0 'loading' state does not work well
 // todo ak0 test how loading sequence works in case of loading on parking
 // todo ak0 test how loading sequence works in case of loading in air
@@ -18,6 +16,8 @@ import java.io.IOException;
 // todo ak1 improved look-and-feel
 // todo ak1 another icon
 // todo ak1 60 seconds timer before autocancellation
+// todo ak1 rethink statusToRestoreLabel
+// todo ak2 somehow set atc id (and store it?)
 // todo ak2 simconnect.text experiments
 // todo ak2 hide at auto-start
 // todo ak2 limit max distance for simple movement

@@ -1,13 +1,8 @@
 package net.simforge.parkedaircraft2;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import flightsim.simconnect.SimConnect;
-import net.simforge.commons.io.IOHelper;
 import net.simforge.commons.misc.Geo;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -75,29 +70,30 @@ public class Logic {
             TrackingState newTrackingState = new TrackingState(aircraftState);
             RestorationStatus newRestorationStatus = state.restorationStatus;
             SavedAircraft newSavedAircraftToRestore = state.savedAircraftToRestore;
+            boolean newBringFormToFront = state.bringFormToFront;
 
             if (state.trackingState == null) {
                 if (newTrackingState.inSimulation) {
-                    newSavedAircraftToRestore = loadIfExists(newTrackingState.title);
+                    newSavedAircraftToRestore = Tools.loadIfExists(newTrackingState.title);
                     newRestorationStatus = newSavedAircraftToRestore != null ? RestorationStatus.WaitForUserConfirmation : RestorationStatus.NothingToRestore;
                     newSimStatus = SimStatus.FullyReady;
                 } else {
-                    newSavedAircraftToRestore = loadIfExists(newTrackingState.title);
+                    newSavedAircraftToRestore = Tools.loadIfExists(newTrackingState.title);
                     newRestorationStatus = newSavedAircraftToRestore != null ? RestorationStatus.WaitForSimReady : RestorationStatus.NothingToRestore;
                     newSimStatus = SimStatus.MainScreen;
                 }
             } else if (state.trackingState.inSimulation != newTrackingState.inSimulation) {
                 if (newTrackingState.inSimulation) {
-                    newSavedAircraftToRestore = loadIfExists(newTrackingState.title);
+                    newSavedAircraftToRestore = Tools.loadIfExists(newTrackingState.title);
                     newRestorationStatus = newSavedAircraftToRestore != null ? RestorationStatus.WaitForSimReady : RestorationStatus.NothingToRestore;
                     newSimStatus = SimStatus.Loading;
                 } else { // user quits from simulation
                     if (state.restorationStatus == RestorationStatus.NothingToRestore && state.trackingState.aircraft.isOnGround()) { // todo ak1 saving condition
                         final SavedAircraft savedAircraftToSave = SavedAircraft.from(state.trackingState);
-                        save(savedAircraftToSave);
+                        Tools.save(savedAircraftToSave);
                     }
 
-                    newSavedAircraftToRestore = loadIfExists(newTrackingState.title);
+                    newSavedAircraftToRestore = Tools.loadIfExists(newTrackingState.title);
                     newRestorationStatus = RestorationStatus.WaitForSimReady;
                     newSimStatus = SimStatus.MainScreen;
                 }
@@ -115,7 +111,7 @@ public class Logic {
                                     newSimStatus = SimStatus.FullyReady;
                                     newRestorationStatus = RestorationStatus.WaitForUserConfirmation;
                                     //newUserConfirmationInitiated = System.currentTimeMillis();
-                                    // todo ak0 bring to front
+                                    newBringFormToFront = true;
                                 }
                             }
                         }
@@ -132,7 +128,7 @@ public class Logic {
 
                 } else { // outside of simulation
                     if (!state.trackingState.title.equals(newTrackingState.title)) {
-                        newSavedAircraftToRestore = loadIfExists(newTrackingState.title);
+                        newSavedAircraftToRestore = Tools.loadIfExists(newTrackingState.title);
                     }
                     newSimStatus = SimStatus.MainScreen;
                 }
@@ -141,7 +137,8 @@ public class Logic {
             state = state.setSimStatus(newSimStatus)
                     .setTrackingState(newTrackingState)
                     .setRestorationStatus(newRestorationStatus)
-                    .setSavedAircraftToRestore(newSavedAircraftToRestore);
+                    .setSavedAircraftToRestore(newSavedAircraftToRestore)
+                    .setBringFormToFront(newBringFormToFront);
         });
     }
 
@@ -156,15 +153,21 @@ public class Logic {
                             state.savedAircraftToRestore.heading
                     ));
 
-            state = state.setRestorationStatus(RestorationStatus.NothingToRestore)
-                    .setSavedAircraftToRestore(null);
+//            state = state.setRestorationStatus(RestorationStatus.NothingToRestore)
+//                    .setSavedAircraftToRestore(null);
         });
     }
 
     public void whenUserCancelsRestoration() {
         queue.add(() -> {
-            state = state.setRestorationStatus(RestorationStatus.NothingToRestore)
-                    .setSavedAircraftToRestore(null);
+//            state = state.setRestorationStatus(RestorationStatus.NothingToRestore)
+//                    .setSavedAircraftToRestore(null);
+        });
+    }
+
+    public void whenBringFormToFront() {
+        queue.add(() -> {
+            state = state.setBringFormToFront(false);
         });
     }
 
@@ -181,6 +184,7 @@ public class Logic {
         private final TrackingState trackingState;
         private final RestorationStatus restorationStatus;
         private final SavedAircraft savedAircraftToRestore;
+        private final boolean bringFormToFront;
         private final long userConfirmationInitiated = 0; // todo ak1
 
         private State() {
@@ -188,16 +192,19 @@ public class Logic {
             this.trackingState = null;
             this.restorationStatus = RestorationStatus.NothingToRestore;
             this.savedAircraftToRestore = null;
+            this.bringFormToFront = false;
         }
 
         private State(final SimStatus simStatus,
                       final TrackingState trackingState,
                       final RestorationStatus restorationStatus,
-                      final SavedAircraft savedAircraftToRestore) {
+                      final SavedAircraft savedAircraftToRestore,
+                      final boolean bringFormToFront) {
             this.simStatus = simStatus;
             this.trackingState = trackingState;
             this.restorationStatus = restorationStatus;
             this.savedAircraftToRestore = savedAircraftToRestore;
+            this.bringFormToFront = bringFormToFront;
         }
 
         public static State brandNew() {
@@ -209,7 +216,7 @@ public class Logic {
         }
 
         public State setSimStatus(final SimStatus simStatus) {
-            return new State(simStatus, trackingState, restorationStatus, savedAircraftToRestore);
+            return new State(simStatus, trackingState, restorationStatus, savedAircraftToRestore, bringFormToFront);
         }
 
         public TrackingState getTrackingState() {
@@ -217,7 +224,7 @@ public class Logic {
         }
 
         public State setTrackingState(TrackingState trackingState) {
-            return new State(simStatus, trackingState, restorationStatus, savedAircraftToRestore);
+            return new State(simStatus, trackingState, restorationStatus, savedAircraftToRestore, bringFormToFront);
         }
 
         public RestorationStatus getRestorationStatus() {
@@ -225,7 +232,7 @@ public class Logic {
         }
 
         public State setRestorationStatus(RestorationStatus restorationStatus) {
-            return new State(simStatus, trackingState, restorationStatus, savedAircraftToRestore);
+            return new State(simStatus, trackingState, restorationStatus, savedAircraftToRestore, bringFormToFront);
         }
 
         public SavedAircraft getSavedAircraftToRestore() {
@@ -233,7 +240,15 @@ public class Logic {
         }
 
         public State setSavedAircraftToRestore(SavedAircraft savedAircraftToRestore) {
-            return new State(simStatus, trackingState, restorationStatus, savedAircraftToRestore);
+            return new State(simStatus, trackingState, restorationStatus, savedAircraftToRestore, bringFormToFront);
+        }
+
+        public boolean isBringFormToFront() {
+            return bringFormToFront;
+        }
+
+        public State setBringFormToFront(final boolean bringFormToFront) {
+            return new State(simStatus, trackingState, restorationStatus, savedAircraftToRestore, bringFormToFront);
         }
 
         public double getDistanceToSavedPosition() {
@@ -285,36 +300,5 @@ public class Logic {
         public static SavedAircraft from(final TrackingState trackingState) {
             return new SavedAircraft(trackingState.title, trackingState.aircraft.latitude, trackingState.aircraft.longitude, trackingState.aircraft.altitude, trackingState.aircraft.heading);
         }
-    }
-
-    private static File makeFile(final String title) {
-        return new File(System.getenv("LOCALAPPDATA") + "/simforge.net/Parked Aircraft/" + title + ".json");
-    }
-
-    private static void save(final SavedAircraft savedAircraft) {
-        final Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        final String json = gson.toJson(savedAircraft);
-        try {
-            final File file = makeFile(savedAircraft.title);
-            file.getParentFile().mkdirs();
-            IOHelper.saveFile(file, json);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private static SavedAircraft loadIfExists(final String title) {
-        final File file = makeFile(title);
-        if (!file.exists()) {
-            return null;
-        }
-        final String json;
-        try {
-            json = IOHelper.loadFile(file);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        final Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        return gson.fromJson(json, SavedAircraft.class);
     }
 }

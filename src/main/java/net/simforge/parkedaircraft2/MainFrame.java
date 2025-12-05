@@ -9,6 +9,7 @@ import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
+import java.text.DecimalFormat;
 
 public class MainFrame extends JFrame {
 
@@ -36,6 +37,7 @@ public class MainFrame extends JFrame {
     private JButton restoreButton;
     private JButton cancelButton;
     private JLabel inSimStatusLabel;
+    private JLabel hasSavedStatusLabel;
     private JLabel parkingStatusLabel;
 
     public MainFrame() throws HeadlessException {
@@ -60,7 +62,7 @@ public class MainFrame extends JFrame {
     }
 
     private void buildUi() {
-        setLayout(new MigLayout("insets 0, gap 0", "[25%][25%][25%][25%]", "[][][][][][][][]"));
+        setLayout(new MigLayout("insets 0, gap 0", "[25%][25%][25%][25%]", "[][][][][][][][][]"));
 
         simConnectLabel = addCmp(new JLabel("SIM CONNECT", SwingConstants.CENTER), "cell 0 0 2 1, growx, align center");
         simStatusLabel = addCmp(new JLabel("SIM STATUS", SwingConstants.CENTER), "cell 2 0 2 1, growx, align center");
@@ -92,7 +94,10 @@ public class MainFrame extends JFrame {
         inSimStatusLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 7 4 1, growx, align center");
         inSimStatusLabel.setBackground(Color.LIGHT_GRAY);
 
-        parkingStatusLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 8 4 1, growx, align center");
+        hasSavedStatusLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 8 4 1, growx, align center");
+        hasSavedStatusLabel.setBackground(Color.LIGHT_GRAY);
+
+        parkingStatusLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 9 4 1, growx, align center");
         parkingStatusLabel.setBackground(Color.LIGHT_GRAY);
     }
 
@@ -137,11 +142,11 @@ public class MainFrame extends JFrame {
         };
 
         if (showSavedPosition) {
-            statusToRestoreLabel.setText("THERE IS SAVED STATUS TO RESTORE");
+            // todo ak1 rethink statusToRestoreLabel.setText("THERE IS SAVED STATUS TO RESTORE");
             savedPositionCaptionLabel.setText("Saved Position");
             savedPositionIcaoLabel.setText(findIcao(state.getSavedAircraftToRestore().latitude, state.getSavedAircraftToRestore().longitude));
         } else {
-            statusToRestoreLabel.setText("no saved status found");
+            // todo ak1 rethink statusToRestoreLabel.setText("no saved status found");
             savedPositionCaptionLabel.setText("");
             savedPositionIcaoLabel.setText("");
         }
@@ -180,7 +185,27 @@ public class MainFrame extends JFrame {
         }
 
         inSimStatusLabel.setText("IN SIM: " + inSimStatus);
+        hasSavedStatusLabel.setText("Saved status: "
+                + (state.getTrackingState() != null && Tools.loadIfExists(state.getTrackingState().title) != null ? "EXISTS" : "not found")
+                + " R/S: " + state.getRestorationStatus().name().substring(0, 10) + "...");
         parkingStatusLabel.setText(parkingStatus);
+
+        if (state.isBringFormToFront()) {
+            if (!isVisible()) {
+                setVisible(true);
+            }
+
+            setExtendedState(getExtendedState() & ~JFrame.ICONIFIED);
+
+            toFront();
+            requestFocus();
+            requestFocusInWindow();
+
+            setAlwaysOnTop(true);
+            setAlwaysOnTop(false);
+
+            Logic.get().whenBringFormToFront();
+        }
     }
 
     private void restoreAction() {
@@ -245,18 +270,21 @@ public class MainFrame extends JFrame {
         return component;
     }
 
+    private static final DecimalFormat df0_0 = new DecimalFormat("0.0");
+    private static final DecimalFormat df0_00 = new DecimalFormat("0.00");
+
     private String formatDistance(final Logic.State state) {
         if (state.isAircraftAtToSavedPosition()) {
-            return "At saved position";
+            return "At the saved position";
         }
 
         final double distance = state.getDistanceToSavedPosition();
         if (distance > 10) {
             return (int) distance + " nm away";
         } else if (distance >= 0.1) {
-            return ((int)(distance*10))*0.1 + " nm away";
+            return df0_0.format(distance) + " nm away";
         } else {
-            return ((int)(distance*100))*0.01 + " nm away";
+            return df0_00.format(distance) + " nm away";
         }
     }
 

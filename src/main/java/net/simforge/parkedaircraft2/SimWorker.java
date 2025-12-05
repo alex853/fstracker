@@ -90,10 +90,10 @@ public class SimWorker implements EventHandler, OpenHandler, QuitHandler, SimObj
         simConnect.subscribeToSystemEvent(Definition.SimStart.ordinal(), "SimStart");
         simConnect.subscribeToSystemEvent(Definition.SimStop.ordinal(), "SimStop");
 
-        SCTools.addDefinition(simConnect, Definition.Mk1AircraftState.ordinal(), Mk1AircraftStateDefinition.fields);
+        Tools.addDefinition(simConnect, Definition.Mk1AircraftState.ordinal(), Mk1AircraftStateDefinition.fields);
         simConnect.subscribeToSystemEvent(Definition.Mk1AircraftState.ordinal(), "1sec");
 
-        SCTools.addDefinition(simConnect, Definition.MoveAircraft.ordinal(), MoveAircraftDefinition.fields);
+        Tools.addDefinition(simConnect, Definition.MoveAircraft.ordinal(), MoveAircraftDefinition.fields);
 
         // dispatcher
         final DispatcherTask dt = new DispatcherTask(simConnect);

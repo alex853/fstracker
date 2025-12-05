@@ -45,7 +45,7 @@ public class Mk1AircraftStateDefinition {
     }
 
     public static Mk1AircraftStateDefinition from(final RecvSimObjectDataByType received) {
-        final SimState simState = SCTools.readSimState(received,
+        final SimState simState = Tools.readSimState(received,
                 Mk1AircraftStateDefinition.fields);
         return new Mk1AircraftStateDefinition(
                 simState.getString(SimStateField.Title),

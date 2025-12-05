@@ -1,14 +1,18 @@
 package net.simforge.parkedaircraft2;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import flightsim.simconnect.SimConnect;
 import flightsim.simconnect.recv.RecvSimObjectDataByType;
+import net.simforge.commons.io.IOHelper;
 import net.simforge.fsdatafeeder.SimState;
 import net.simforge.fsdatafeeder.SimStateField;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 
-public class SCTools {
+public class Tools {
 
     public static void addDefinition(final SimConnect simConnect, final int definitionId, final SimStateField[] fields) {
         Arrays.stream(fields).forEach(f -> {
@@ -35,4 +39,34 @@ public class SCTools {
         return state;
     }
 
+    private static File makeFile(final String title) {
+        return new File(System.getenv("LOCALAPPDATA") + "/simforge.net/Parked Aircraft/" + title + ".json");
+    }
+
+    public static void save(final Logic.SavedAircraft savedAircraft) {
+        final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        final String json = gson.toJson(savedAircraft);
+        try {
+            final File file = makeFile(savedAircraft.title);
+            file.getParentFile().mkdirs();
+            IOHelper.saveFile(file, json);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static Logic.SavedAircraft loadIfExists(final String title) {
+        final File file = makeFile(title);
+        if (!file.exists()) {
+            return null;
+        }
+        final String json;
+        try {
+            json = IOHelper.loadFile(file);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        return gson.fromJson(json, Logic.SavedAircraft.class);
+    }
 }
