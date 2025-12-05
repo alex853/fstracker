@@ -6,22 +6,25 @@ import javax.swing.*;
 import java.awt.*;
 import java.io.IOException;
 
-// todo ak0 implement icao codes
-// todo ak0 bring form to front
-// todo ak0 when simulator starts, and it is in main screen, sim position should not be shown on the screen
-// todo ak0 when aircraft is flying, show sim position dynamically changing
+// todo ak if simulator is available then show sim position and this will change dynamically
+// todo ak if saved state is available then show saved state info
+// todo ak when simulator starts, and it is in main screen, sim position should not be shown on the screen
+// todo ak when aircraft is flying, show sim position dynamically changing and do not show saved position
+// todo ak0 bring form to front when simulator becomes loaded
 // todo ak0 fuel support
 // todo ak1 do not save when aircraft is flying
+// todo ak1 do not save if aircraft has not been landed before
+// todo ak1 do not restore if aircraft is loaded flying
 // todo ak1 improved look-and-feel
 // todo ak1 another icon
 // todo ak1 60 seconds timer before autocancellation
-// todo ak2 simconnect.text probe
+// todo ak2 simconnect.text experiments
 // todo ak2 hide at auto-start
 // todo ak2 limit max distance for simple movement
 // todo ak2 non-resizable frame
 // todo ak3 cloud storage of aircraft states
 // todo ak3 FLT-movement support
-// todo ak3 refueling workflow with truck, time simulation, etc
+// todo ak3 refueling workflow, time simulation, etc
 // todo ak3 integrate tracking code into the app, rename it into fs-tracker?
 // todo ak3 remove 'test message'
 public class ParkedAircraft {

@@ -1,14 +1,26 @@
 package net.simforge.parkedaircraft2;
 
 import net.miginfocom.swing.MigLayout;
+import net.simforge.ourairports.OurAirportsIndex;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.IOException;
 
 public class MainFrame extends JFrame {
+
+    private static final OurAirportsIndex airportsIndex;
+
+    static {
+        try {
+            airportsIndex = OurAirportsIndex.loadFromResources();
+        } catch (IOException | ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     private TrayIcon trayIcon;
 
@@ -135,8 +147,8 @@ public class MainFrame extends JFrame {
                 statusToRestoreLabel.setText("THERE IS SAVED STATUS TO RESTORE");
                 simPositionCaptionLabel.setText("Sim Position");
                 savedPositionCaptionLabel.setText("Saved Position");
-                simPositionIcaoLabel.setText("ICAO");
-                savedPositionIcaoLabel.setText("ICAO");
+                simPositionIcaoLabel.setText(findIcao(state.getTrackingState().aircraft.latitude, state.getTrackingState().aircraft.longitude));
+                savedPositionIcaoLabel.setText(findIcao(state.getSavedAircraftToRestore().latitude, state.getSavedAircraftToRestore().longitude));
                 distanceLabel.setText(formatDistance(state));
 
                 if (!state.isAircraftAtToSavedPosition() && restorationStatus == Logic.RestorationStatus.WaitForUserConfirmation) {
@@ -226,5 +238,10 @@ public class MainFrame extends JFrame {
         } else {
             return ((int)(distance*100))*0.01 + " nm away";
         }
+    }
+
+    private String findIcao(double lat, double lon) {
+        OurAirportsIndex.AirportAndDistance nearest = airportsIndex.findNearestIcaoIndexed(lat, lon);
+        return nearest != null && nearest.distance < 10 ? nearest.airport.icao : "n/a";
     }
 }

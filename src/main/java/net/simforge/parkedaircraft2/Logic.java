@@ -260,7 +260,7 @@ public class Logic {
         }
     }
 
-    private static class SavedAircraft {
+    public static class SavedAircraft {
         final String title;
         final double latitude;
         final double longitude;
