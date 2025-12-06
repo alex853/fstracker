@@ -39,10 +39,11 @@ public class MainFrame extends JFrame {
     private JLabel inSimStatusLabel;
     private JLabel hasSavedStatusLabel;
     private JLabel parkingStatusLabel;
+    private JLabel fuelStatusLabel;
 
     public MainFrame() throws HeadlessException {
         setTitle("Parked Aircraft");
-        setSize(400, 300);
+        setSize(400, 350);
 
         buildUi();
 
@@ -99,6 +100,9 @@ public class MainFrame extends JFrame {
 
         parkingStatusLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 9 4 1, growx, align center");
         parkingStatusLabel.setBackground(Color.LIGHT_GRAY);
+
+        fuelStatusLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 10 4 1, growx, align center");
+        fuelStatusLabel.setBackground(Color.LIGHT_GRAY);
     }
 
     private void updateUi() {
@@ -189,6 +193,9 @@ public class MainFrame extends JFrame {
                 + (state.getTrackingState() != null && Tools.loadIfExists(state.getTrackingState().title) != null ? "EXISTS" : "not found")
                 + " R/S: " + state.getRestorationStatus().name().substring(0, 10) + "...");
         parkingStatusLabel.setText(parkingStatus);
+        fuelStatusLabel.setText("Fuel: " + (state.getTrackingState() != null
+                ? formatFuelTanks(state.getTrackingState().aircraft)
+                : "n/a"));
 
         if (state.isBringFormToFront()) {
             if (!isVisible()) {
@@ -270,6 +277,7 @@ public class MainFrame extends JFrame {
         return component;
     }
 
+    private static final DecimalFormat df0_o = new DecimalFormat("0.#");
     private static final DecimalFormat df0_0 = new DecimalFormat("0.0");
     private static final DecimalFormat df0_00 = new DecimalFormat("0.00");
 
@@ -286,6 +294,23 @@ public class MainFrame extends JFrame {
         } else {
             return df0_00.format(distance) + " nm away";
         }
+    }
+
+    private String formatFuelTanks(final AircraftStateDefinition aircraft) {
+        return df0_0.format(aircraft.fuelCenterQuantity + aircraft.fuelCenter2Quantity + aircraft.fuelCenter3Quantity
+                + aircraft.fuelLeftMainQuantity + aircraft.fuelRightMainQuantity + aircraft.fuelLeftAuxQuantity + aircraft.fuelRightAuxQuantity
+                + aircraft.fuelLeftTipQuantity + aircraft.fuelRightTipQuantity + aircraft.fuelExternal1Quantity + aircraft.fuelExternal2Quantity)
+                + " Tanks: " + df0_o.format(aircraft.fuelCenterQuantity) + "/"
+                + df0_o.format(aircraft.fuelCenter2Quantity) + "/"
+                + df0_o.format(aircraft.fuelCenter3Quantity) + "/"
+                + df0_o.format(aircraft.fuelLeftMainQuantity) + "/"
+                + df0_o.format(aircraft.fuelRightMainQuantity) + "/"
+                + df0_o.format(aircraft.fuelLeftAuxQuantity) + "/"
+                + df0_o.format(aircraft.fuelRightAuxQuantity) + "/"
+                + df0_o.format(aircraft.fuelLeftTipQuantity) + "/"
+                + df0_o.format(aircraft.fuelRightTipQuantity) + "/"
+                + df0_o.format(aircraft.fuelExternal1Quantity) + "/"
+                + df0_o.format(aircraft.fuelExternal2Quantity);
     }
 
     private String findIcao(double lat, double lon) {

@@ -21,7 +21,24 @@ public enum SimStateField {
     Ground_Velocity("Ground Velocity", "knots", SimConnectDataType.FLOAT64),
     Indicated_Altitude("Indicated Altitude", "feet", SimConnectDataType.FLOAT64),
     Vertical_Speed("Vertical Speed", "feet per second", SimConnectDataType.FLOAT64),
-    Heading_Indicator("Heading Indicator", null, SimConnectDataType.FLOAT64);
+    Heading_Indicator("Heading Indicator", null, SimConnectDataType.FLOAT64),
+
+    Fuel_Tank_Center_Quantity("Fuel Tank Center Quantity", "gallons", SimConnectDataType.FLOAT64),
+    Fuel_Tank_Center2_Quantity("Fuel Tank Center2 Quantity", "gallons", SimConnectDataType.FLOAT64),
+    Fuel_Tank_Center3_Quantity("Fuel Tank Center3 Quantity", "gallons", SimConnectDataType.FLOAT64),
+
+    Fuel_Tank_Left_Main_Quantity("Fuel Tank Left Main Quantity", "gallons", SimConnectDataType.FLOAT64),
+    Fuel_Tank_Right_Main_Quantity("Fuel Tank Right Main Quantity", "gallons", SimConnectDataType.FLOAT64),
+
+    Fuel_Tank_Left_Aux_Quantity("Fuel Tank Left Aux Quantity", "gallons", SimConnectDataType.FLOAT64),
+    Fuel_Tank_Right_Aux_Quantity("Fuel Tank Right Aux Quantity", "gallons", SimConnectDataType.FLOAT64),
+
+    Fuel_Tank_Left_Tip_Quantity("Fuel Tank Left Tip Quantity", "gallons", SimConnectDataType.FLOAT64),
+    Fuel_Tank_Right_Tip_Quantity("Fuel Tank Right Tip Quantity", "gallons", SimConnectDataType.FLOAT64),
+
+    Fuel_Tank_External1_Quantity("Fuel Tank External1 Quantity", "gallons", SimConnectDataType.FLOAT64),
+    Fuel_Tank_External2_Quantity("Fuel Tank External2 Quantity", "gallons", SimConnectDataType.FLOAT64),
+    ;
 
     private final String title;
     private final String unitsName;

@@ -90,7 +90,7 @@ public class SimWorker implements EventHandler, OpenHandler, QuitHandler, SimObj
         simConnect.subscribeToSystemEvent(Definition.SimStart.ordinal(), "SimStart");
         simConnect.subscribeToSystemEvent(Definition.SimStop.ordinal(), "SimStop");
 
-        Tools.addDefinition(simConnect, Definition.Mk1AircraftState.ordinal(), Mk1AircraftStateDefinition.fields);
+        Tools.addDefinition(simConnect, Definition.Mk1AircraftState.ordinal(), AircraftStateDefinition.fields);
         simConnect.subscribeToSystemEvent(Definition.Mk1AircraftState.ordinal(), "1sec");
 
         Tools.addDefinition(simConnect, Definition.MoveAircraft.ordinal(), MoveAircraftDefinition.fields);
@@ -144,7 +144,7 @@ public class SimWorker implements EventHandler, OpenHandler, QuitHandler, SimObj
 
     public void handleSimObjectType(SimConnect sender, RecvSimObjectDataByType e) {
         if (e.getRequestID() == Definition.Mk1AircraftState.ordinal()) {
-            Logic.get().whenAircraftStateReceived(Mk1AircraftStateDefinition.from(e));
+            Logic.get().whenAircraftStateReceived(AircraftStateDefinition.from(e));
         }
     }
 

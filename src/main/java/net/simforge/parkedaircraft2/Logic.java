@@ -64,7 +64,7 @@ public class Logic {
         });
     }
 
-    public void whenAircraftStateReceived(final Mk1AircraftStateDefinition aircraftState) {
+    public void whenAircraftStateReceived(final AircraftStateDefinition aircraftState) {
         queue.add(() -> {
             SimStatus newSimStatus = state.simStatus;
             TrackingState newTrackingState = new TrackingState(aircraftState);
@@ -94,7 +94,7 @@ public class Logic {
                     }
 
                     newSavedAircraftToRestore = Tools.loadIfExists(newTrackingState.title);
-                    newRestorationStatus = RestorationStatus.WaitForSimReady;
+                    newRestorationStatus = newSavedAircraftToRestore != null ? RestorationStatus.WaitForSimReady : RestorationStatus.NothingToRestore;
                     newSimStatus = SimStatus.MainScreen;
                 }
             } else { // currentState.inSimulation == newTrackingState.inSimulation
@@ -269,9 +269,9 @@ public class Logic {
     public static class TrackingState {
         final boolean inSimulation;
         final String title;
-        final Mk1AircraftStateDefinition aircraft;
+        final AircraftStateDefinition aircraft;
 
-        private TrackingState(final Mk1AircraftStateDefinition aircraftState) {
+        private TrackingState(final AircraftStateDefinition aircraftState) {
             this.inSimulation = !isOutsideSimulation(aircraftState.latitude, aircraftState.longitude);
             this.title = aircraftState.title;
             this.aircraft = aircraftState;
@@ -288,17 +288,48 @@ public class Logic {
         final double longitude;
         final double altitude;
         final double heading;
+        final SavedAircraftFuel fuel;
 
-        private SavedAircraft(String title, double latitude, double longitude, double altitude, double heading) {
-            this.title = title;
-            this.latitude = latitude;
-            this.longitude = longitude;
-            this.altitude = altitude;
-            this.heading = heading;
+        private SavedAircraft(final TrackingState trackingState) {
+            this.title = trackingState.aircraft.title;
+            this.latitude = trackingState.aircraft.latitude;
+            this.longitude = trackingState.aircraft.longitude;
+            this.altitude = trackingState.aircraft.altitude;
+            this.heading = trackingState.aircraft.heading;
+            this.fuel = new SavedAircraftFuel(trackingState.aircraft);
         }
 
         public static SavedAircraft from(final TrackingState trackingState) {
-            return new SavedAircraft(trackingState.title, trackingState.aircraft.latitude, trackingState.aircraft.longitude, trackingState.aircraft.altitude, trackingState.aircraft.heading);
+            return new SavedAircraft(trackingState);
+        }
+        
+    }
+
+    public static class SavedAircraftFuel {
+        final double center;
+        final double center2;
+        final double center3;
+        final double leftMain;
+        final double rightMain;
+        final double leftAux;
+        final double rightAux;
+        final double leftTip;
+        final double rightTip;
+        final double external1;
+        final double external2;
+        
+        private SavedAircraftFuel(final AircraftStateDefinition aircraft) {
+            this.center = aircraft.fuelCenterQuantity;
+            this.center2 = aircraft.fuelCenter2Quantity;
+            this.center3 = aircraft.fuelCenter3Quantity;
+            this.leftMain = aircraft.fuelLeftMainQuantity;
+            this.rightMain = aircraft.fuelRightMainQuantity;
+            this.leftAux = aircraft.fuelLeftAuxQuantity;
+            this.rightAux = aircraft.fuelRightAuxQuantity;
+            this.leftTip = aircraft.fuelLeftTipQuantity;
+            this.rightTip = aircraft.fuelRightTipQuantity;
+            this.external1 = aircraft.fuelExternal1Quantity;
+            this.external2 = aircraft.fuelExternal2Quantity;
         }
     }
 }
