@@ -6,14 +6,9 @@ import javax.swing.*;
 import java.awt.*;
 import java.io.IOException;
 
-// todo ak fuel support
-// todo ak0 5 columns instead of 4 ?
+// todo ak 5 columns instead of 4 ?
 // todo ak0 'loading' state does not work well
-// todo ak0 test how loading sequence works in case of loading on parking
-// todo ak0 test how loading sequence works in case of loading in air
 // todo ak1 do not save when aircraft is flying - todo ak1 saving condition
-// todo ak1 do not save if aircraft has not been landed before
-// todo ak1 do not restore if aircraft is loaded flying
 // todo ak1 improved look-and-feel
 // todo ak2 another icon
 // todo ak1 60 seconds timer before autocancellation

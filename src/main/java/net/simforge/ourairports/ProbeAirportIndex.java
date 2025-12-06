@@ -7,7 +7,7 @@ public class ProbeAirportIndex {
         OurAirportsIndex index = OurAirportsIndex.loadFromResources();
 
         System.out.println(index.findNearestIcao(53.0, 51.0));
-        System.out.println(index.findNearestIcaoIndexed(53.0, 51.0));
+        System.out.println(index.findNearestIcaoIndexed(53.0, 51.0).airport.icao);
 
         long started = System.currentTimeMillis();
         for (int i = 0; i < 1000; i++) {

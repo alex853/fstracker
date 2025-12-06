@@ -30,9 +30,11 @@ public class MainFrame extends JFrame {
     private JLabel aircraftTitleLabel;
     private JLabel statusToRestoreLabel;
     private JLabel simPositionCaptionLabel;
-    private JLabel savedPositionCaptionLabel;
+    private JLabel savedDataCaptionLabel;
     private JLabel simPositionIcaoLabel;
-    private JLabel savedPositionIcaoLabel;
+    private JLabel savedDataIcaoLabel;
+    private JLabel simDataFuelLabel;
+    private JLabel savedDataFuelLabel;
     private JLabel distanceLabel;
     private JButton restoreButton;
     private JButton cancelButton;
@@ -74,34 +76,38 @@ public class MainFrame extends JFrame {
         statusToRestoreLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 2 4 1, growx, align center");
 
         simPositionCaptionLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 3 2 1, growx, align center");
-        savedPositionCaptionLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 2 3 2 1, growx, align center");
+        savedDataCaptionLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 2 3 2 1, growx, align center");
 
         simPositionIcaoLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 4 2 1, growx, align center");
-        savedPositionIcaoLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 2 4 2 1, growx, align center");
+        savedDataIcaoLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 2 4 2 1, growx, align center");
 
         distanceLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 5 4 1, growx, align center");
+
+        simDataFuelLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 6 2 1, growx, align center");
+        savedDataFuelLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 2 6 2 1, growx, align center");
 
         restoreButton = new JButton("Restore");
         restoreButton.addActionListener(e -> restoreAction());
 
+        // todo ak1 deprecated?
         cancelButton = new JButton("Cancel");
         cancelButton.addActionListener(e -> cancelAction());
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
         buttonPanel.add(restoreButton);
         buttonPanel.add(cancelButton);
-        add(buttonPanel, "cell 0 6 4 1, growx, align center");
+        add(buttonPanel, "cell 0 7 4 1, growx, align center");
 
-        inSimStatusLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 7 4 1, growx, align center");
+        inSimStatusLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 8 4 1, growx, align center");
         inSimStatusLabel.setBackground(Color.LIGHT_GRAY);
 
-        hasSavedStatusLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 8 4 1, growx, align center");
+        hasSavedStatusLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 9 4 1, growx, align center");
         hasSavedStatusLabel.setBackground(Color.LIGHT_GRAY);
 
-        parkingStatusLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 9 4 1, growx, align center");
+        parkingStatusLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 10 4 1, growx, align center");
         parkingStatusLabel.setBackground(Color.LIGHT_GRAY);
 
-        fuelStatusLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 10 4 1, growx, align center");
+        fuelStatusLabel = addCmp(new JLabel("", SwingConstants.CENTER), "cell 0 11 4 1, growx, align center");
         fuelStatusLabel.setBackground(Color.LIGHT_GRAY);
     }
 
@@ -140,45 +146,49 @@ public class MainFrame extends JFrame {
 
         aircraftTitleLabel.setText(title);
 
-        final boolean showSavedPosition = switch (restorationStatus) {
+        final boolean showSavedData = switch (restorationStatus) {
             case NothingToRestore -> false;
             case WaitForSimReady, WaitForUserConfirmation -> true;
         };
 
-        if (showSavedPosition) {
+        if (showSavedData) {
             // todo ak1 rethink statusToRestoreLabel.setText("THERE IS SAVED STATUS TO RESTORE");
-            savedPositionCaptionLabel.setText("Saved Position");
-            savedPositionIcaoLabel.setText(findIcao(state.getSavedAircraftToRestore().latitude, state.getSavedAircraftToRestore().longitude));
+            savedDataCaptionLabel.setText("Saved Data");
+            savedDataIcaoLabel.setText(findIcao(state.getSavedAircraftToRestore().latitude, state.getSavedAircraftToRestore().longitude));
+            savedDataFuelLabel.setText(df0_0.format(state.getSavedAircraftToRestore().fuel.getTotal()) + " gal");
         } else {
             // todo ak1 rethink statusToRestoreLabel.setText("no saved status found");
-            savedPositionCaptionLabel.setText("");
-            savedPositionIcaoLabel.setText("");
+            savedDataCaptionLabel.setText("");
+            savedDataIcaoLabel.setText("");
+            savedDataFuelLabel.setText("");
         }
 
-        final boolean showSimPosition = switch (simStatus) {
+        final boolean showSimData = switch (simStatus) {
             default -> false;
             case ReadyToFly, FullyReady -> true;
         };
 
-        if (showSimPosition) {
-            simPositionCaptionLabel.setText("Sim Position");
+        if (showSimData) {
+            simPositionCaptionLabel.setText("Sim Data");
             if (state.getTrackingState().aircraft.isOnGround()) {
                 simPositionIcaoLabel.setText(findIcao(state.getTrackingState().aircraft.latitude, state.getTrackingState().aircraft.longitude));
             } else {
                 simPositionIcaoLabel.setText("Flying");
             }
+            simDataFuelLabel.setText(df0_0.format(state.getTrackingState().aircraft.getTotalFuelQuantity()) + " gal");
         } else {
             simPositionCaptionLabel.setText("");
             simPositionIcaoLabel.setText("");
+            simDataFuelLabel.setText("");
         }
 
-        if (showSimPosition && showSavedPosition) {
+        if (showSimData && showSavedData) {
             distanceLabel.setText(formatDistance(state));
         } else {
             distanceLabel.setText("");
         }
 
-        if (showSavedPosition
+        if (showSavedData
                 && !state.isAircraftAtToSavedPosition()
                 && restorationStatus == Logic.RestorationStatus.WaitForUserConfirmation) {
             restoreButton.setVisible(true);
@@ -297,9 +307,7 @@ public class MainFrame extends JFrame {
     }
 
     private String formatFuelTanks(final AircraftStateDefinition aircraft) {
-        return df0_0.format(aircraft.fuelCenterQuantity + aircraft.fuelCenter2Quantity + aircraft.fuelCenter3Quantity
-                + aircraft.fuelLeftMainQuantity + aircraft.fuelRightMainQuantity + aircraft.fuelLeftAuxQuantity + aircraft.fuelRightAuxQuantity
-                + aircraft.fuelLeftTipQuantity + aircraft.fuelRightTipQuantity + aircraft.fuelExternal1Quantity + aircraft.fuelExternal2Quantity)
+        return df0_0.format(aircraft.getTotalFuelQuantity())
                 + " Tanks: " + df0_o.format(aircraft.fuelCenterQuantity) + "/"
                 + df0_o.format(aircraft.fuelCenter2Quantity) + "/"
                 + df0_o.format(aircraft.fuelCenter3Quantity) + "/"

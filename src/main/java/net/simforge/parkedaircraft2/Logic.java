@@ -2,11 +2,15 @@ package net.simforge.parkedaircraft2;
 
 import flightsim.simconnect.SimConnect;
 import net.simforge.commons.misc.Geo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class Logic {
+    private static final Logger log = LoggerFactory.getLogger(Logic.class);
+
     public static final double SAVED_POSITION_DELTA = 0.001;
     private static Logic logic;
 
@@ -99,16 +103,22 @@ public class Logic {
                 }
             } else { // currentState.inSimulation == newTrackingState.inSimulation
                 if (newTrackingState.inSimulation) {
-                    if (state.savedAircraftToRestore != null) {
-                        switch (state.simStatus) {
-                            case Loading -> {
-                                if (newTrackingState.aircraft.groundspeed > 0) {
-                                    newSimStatus = SimStatus.ReadyToFly;
-                                }
+                    if (!newTrackingState.aircraft.isOnGround()) {
+                        newSavedAircraftToRestore = null;
+                        newRestorationStatus = RestorationStatus.NothingToRestore;
+                    }
+
+                    switch (newSimStatus) {
+                        case Loading -> {
+                            if (newTrackingState.aircraft.groundspeed > 0) {
+                                newSimStatus = SimStatus.ReadyToFly;
                             }
-                            case ReadyToFly -> {
-                                if (newTrackingState.aircraft.groundspeed == 0) {
-                                    newSimStatus = SimStatus.FullyReady;
+                        }
+                        case ReadyToFly -> {
+                            if (newTrackingState.aircraft.groundspeed == 0) {
+                                newSimStatus = SimStatus.FullyReady;
+
+                                if (newSavedAircraftToRestore != null) {
                                     newRestorationStatus = RestorationStatus.WaitForUserConfirmation;
                                     //newUserConfirmationInitiated = System.currentTimeMillis();
                                     newBringFormToFront = true;
@@ -144,24 +154,20 @@ public class Logic {
 
     public void whenUserRestores() {
         queue.add(() -> {
-            // todo ak0 checks
-            SimWorker.get().moveAircraft(
-                    new MoveAircraftDefinition(
-                            state.savedAircraftToRestore.latitude,
-                            state.savedAircraftToRestore.longitude,
-                            state.savedAircraftToRestore.altitude + 1,
-                            state.savedAircraftToRestore.heading
-                    ));
+            if (state.savedAircraftToRestore == null) {
+                log.error("whenUserRestores - no saved aircraft to restore found!");
+                return;
+            }
 
-//            state = state.setRestorationStatus(RestorationStatus.NothingToRestore)
-//                    .setSavedAircraftToRestore(null);
+            SimWorker.get().moveAircraft(new MoveAircraftDefinition(state.savedAircraftToRestore));
+            SimWorker.get().setFuelQuantities(new SetFuelQuantitiesDefinition(state.savedAircraftToRestore));
+
+            log.warn("whenUserRestores - saved aircraft state restored");
         });
     }
 
-    public void whenUserCancelsRestoration() {
+    public void whenUserCancelsRestoration() { // todo ak1 deprecated?
         queue.add(() -> {
-//            state = state.setRestorationStatus(RestorationStatus.NothingToRestore)
-//                    .setSavedAircraftToRestore(null);
         });
     }
 
@@ -302,7 +308,7 @@ public class Logic {
         public static SavedAircraft from(final TrackingState trackingState) {
             return new SavedAircraft(trackingState);
         }
-        
+
     }
 
     public static class SavedAircraftFuel {
@@ -317,7 +323,7 @@ public class Logic {
         final double rightTip;
         final double external1;
         final double external2;
-        
+
         private SavedAircraftFuel(final AircraftStateDefinition aircraft) {
             this.center = aircraft.fuelCenterQuantity;
             this.center2 = aircraft.fuelCenter2Quantity;
@@ -330,6 +336,14 @@ public class Logic {
             this.rightTip = aircraft.fuelRightTipQuantity;
             this.external1 = aircraft.fuelExternal1Quantity;
             this.external2 = aircraft.fuelExternal2Quantity;
+        }
+
+        public double getTotal() {
+            return center + center2 + center3
+                    + leftMain + rightMain
+                    + leftAux + rightAux
+                    + leftTip + rightTip
+                    + external1 + external2;
         }
     }
 }

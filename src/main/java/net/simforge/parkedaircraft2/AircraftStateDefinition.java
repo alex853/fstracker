@@ -80,6 +80,14 @@ public class AircraftStateDefinition {
         return onGround == 1;
     }
 
+    public double getTotalFuelQuantity() {
+        return fuelCenterQuantity + fuelCenter2Quantity + fuelCenter3Quantity
+                + fuelLeftMainQuantity + fuelRightMainQuantity
+                + fuelLeftAuxQuantity + fuelRightAuxQuantity
+                + fuelLeftTipQuantity + fuelRightTipQuantity
+                + fuelExternal1Quantity + fuelExternal2Quantity;
+    }
+
     public static AircraftStateDefinition from(final RecvSimObjectDataByType received) {
         return new AircraftStateDefinition(
                 Tools.readSimState(

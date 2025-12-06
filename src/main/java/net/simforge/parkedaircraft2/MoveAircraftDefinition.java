@@ -1,6 +1,11 @@
 package net.simforge.parkedaircraft2;
 
+import flightsim.simconnect.SimConnect;
 import net.simforge.fsdatafeeder.SimStateField;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 public class MoveAircraftDefinition {
     public static final SimStateField[] fields = {
@@ -15,11 +20,25 @@ public class MoveAircraftDefinition {
     final double altitude;
     final double heading;
 
-    public MoveAircraftDefinition(double latitude, double longitude, double altitude, double heading) {
-        this.latitude = latitude;
-        this.longitude = longitude;
-        this.altitude = altitude;
-        this.heading = heading;
+    public MoveAircraftDefinition(final Logic.SavedAircraft savedAircraft) {
+        this.latitude = savedAircraft.latitude;
+        this.longitude = savedAircraft.longitude;
+        this.altitude = savedAircraft.altitude + 1;
+        this.heading = savedAircraft.heading;
     }
 
+    public void apply(final SimConnect simConnect) {
+        try {
+            final byte[] bytes = new byte[4*8];
+            final ByteBuffer buf = ByteBuffer.wrap(bytes);
+            buf.order(ByteOrder.LITTLE_ENDIAN);
+            buf.putDouble(this.latitude);
+            buf.putDouble(this.longitude);
+            buf.putDouble(this.altitude);
+            buf.putDouble(this.heading);
+            simConnect.setDataOnSimObject(SimWorker.Definition.MoveAircraft.ordinal(), 0, false, 1, bytes);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

@@ -18,10 +18,10 @@ public class ConvertCsvToIndex {
             String latStr = csv.value(row, 4);
             String lonStr = csv.value(row, 5);
 
-            if (icao.contains("-")) {
-                System.out.println(icao + " SKIPPED!");
-                continue;
-            }
+//            if (icao.contains("-")) {
+//                System.out.println(icao + " SKIPPED!");
+//                continue;
+//            }
 
             System.out.println(icao);
             index.add(icao, Double.valueOf(latStr).floatValue(), Double.valueOf(lonStr).floatValue());

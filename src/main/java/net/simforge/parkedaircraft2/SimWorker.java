@@ -8,17 +8,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 
 public class SimWorker implements EventHandler, OpenHandler, QuitHandler, SimObjectDataTypeHandler, SystemStateHandler, ExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(SimWorker.class);
 
-    private enum Definition {
+    public enum Definition {
         SimStart,
         SimStop,
-        Mk1AircraftState,
-        MoveAircraft
+        AircraftState,
+        MoveAircraft,
+        SetFuelQuantities
     }
 
     private static SimWorker simWorker;
@@ -90,10 +89,11 @@ public class SimWorker implements EventHandler, OpenHandler, QuitHandler, SimObj
         simConnect.subscribeToSystemEvent(Definition.SimStart.ordinal(), "SimStart");
         simConnect.subscribeToSystemEvent(Definition.SimStop.ordinal(), "SimStop");
 
-        Tools.addDefinition(simConnect, Definition.Mk1AircraftState.ordinal(), AircraftStateDefinition.fields);
-        simConnect.subscribeToSystemEvent(Definition.Mk1AircraftState.ordinal(), "1sec");
+        Tools.addDefinition(simConnect, Definition.AircraftState.ordinal(), AircraftStateDefinition.fields);
+        simConnect.subscribeToSystemEvent(Definition.AircraftState.ordinal(), "1sec");
 
         Tools.addDefinition(simConnect, Definition.MoveAircraft.ordinal(), MoveAircraftDefinition.fields);
+        Tools.addDefinition(simConnect, Definition.SetFuelQuantities.ordinal(), SetFuelQuantitiesDefinition.fields);
 
         // dispatcher
         final DispatcherTask dt = new DispatcherTask(simConnect);
@@ -136,14 +136,14 @@ public class SimWorker implements EventHandler, OpenHandler, QuitHandler, SimObj
     public void handleEvent(SimConnect sender, RecvEvent e) {
         // Now the sim is running, request information on the user aircraft
         try {
-            sender.requestDataOnSimObjectType(Definition.Mk1AircraftState, Definition.Mk1AircraftState, 0, SimObjectType.USER);
+            sender.requestDataOnSimObjectType(Definition.AircraftState, Definition.AircraftState, 0, SimObjectType.USER);
         } catch (final IOException ex) {
             log.error("Error while reading", ex);
         }
     }
 
     public void handleSimObjectType(SimConnect sender, RecvSimObjectDataByType e) {
-        if (e.getRequestID() == Definition.Mk1AircraftState.ordinal()) {
+        if (e.getRequestID() == Definition.AircraftState.ordinal()) {
             Logic.get().whenAircraftStateReceived(AircraftStateDefinition.from(e));
         }
     }
@@ -159,17 +159,10 @@ public class SimWorker implements EventHandler, OpenHandler, QuitHandler, SimObj
     }
 
     public void moveAircraft(final MoveAircraftDefinition moveAircraft) {
-        try {
-            final byte[] bytes = new byte[32];
-            final ByteBuffer buf = ByteBuffer.wrap(bytes);
-            buf.order(ByteOrder.LITTLE_ENDIAN);
-            buf.putDouble(moveAircraft.latitude);
-            buf.putDouble(moveAircraft.longitude);
-            buf.putDouble(moveAircraft.altitude);
-            buf.putDouble(moveAircraft.heading);
-            simConnect.setDataOnSimObject(Definition.MoveAircraft.ordinal(), 0, false, 1, bytes);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        moveAircraft.apply(simConnect);
+    }
+
+    public void setFuelQuantities(final SetFuelQuantitiesDefinition setFuelQuantities) {
+        setFuelQuantities.apply(simConnect);
     }
 }
