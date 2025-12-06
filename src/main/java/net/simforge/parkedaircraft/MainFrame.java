@@ -1,4 +1,4 @@
-package net.simforge.parkedaircraft2;
+package net.simforge.parkedaircraft;
 
 import net.miginfocom.swing.MigLayout;
 import net.simforge.ourairports.OurAirportsIndex;

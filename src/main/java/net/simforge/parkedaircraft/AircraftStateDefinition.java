@@ -1,4 +1,4 @@
-package net.simforge.parkedaircraft2;
+package net.simforge.parkedaircraft;
 
 import flightsim.simconnect.recv.RecvSimObjectDataByType;
 import net.simforge.fsdatafeeder.SimState;

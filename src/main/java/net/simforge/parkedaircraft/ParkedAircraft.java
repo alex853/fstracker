@@ -1,4 +1,4 @@
-package net.simforge.parkedaircraft2;
+package net.simforge.parkedaircraft;
 
 import flightsim.simconnect.config.ConfigurationNotFoundException;
 
@@ -9,15 +9,16 @@ import java.io.IOException;
 // todo ak 5 columns instead of 4 ?
 // todo ak0 'loading' state does not work well
 // todo ak1 do not save when aircraft is flying - todo ak1 saving condition
+// todo ak1 save aircraft when aircraft puts parking brakes after landing, and then when engines shut down, in addition to saving on exit from the sim
 // todo ak1 improved look-and-feel
-// todo ak2 another icon
-// todo ak1 60 seconds timer before autocancellation
-// todo ak2 rethink statusToRestoreLabel
-// todo ak3 somehow set atc id (and store it?)
-// todo ak3 simconnect.text experiments
-// todo ak2 hide at auto-start
+// todo ak1 auto-restore settings
 // todo ak1 limit max distance for simple movement
+// todo ak2 another icon
+// todo ak2 rethink statusToRestoreLabel
+// todo ak2 hide at auto-start
 // todo ak2 non-resizable frame
+// todo ak3 simconnect.text experiments
+// todo ak3 somehow set atc id (and store it?)
 // todo ak3 cloud storage of aircraft states
 // todo ak3 FLT-movement support
 // todo ak3 refueling workflow, time simulation, etc

@@ -66,7 +66,7 @@ tasks.register("jpackageExe", Exec) {
             '--type', 'app-image',
             '--input', "${buildDir}/libs",
             '--main-jar', shadowJarFile,
-            '--main-class', 'net.simforge.parkedaircraft2.ParkedAircraft',
+            '--main-class', 'net.simforge.parkedaircraft.ParkedAircraft',
             '--name', 'ParkedAircraft',
 //            '--win-console',
             '--dest', outputDir

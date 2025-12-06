@@ -1,4 +1,4 @@
-package net.simforge.parkedaircraft2;
+package net.simforge.parkedaircraft;
 
 import flightsim.simconnect.SimConnect;
 import net.simforge.commons.misc.Geo;

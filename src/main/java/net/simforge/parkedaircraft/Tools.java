@@ -1,4 +1,4 @@
-package net.simforge.parkedaircraft2;
+package net.simforge.parkedaircraft;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
