@@ -1,10 +1,8 @@
 package net.simforge.fstracker3;
 
-import net.simforge.commons.io.IOHelper;
 import net.simforge.commons.misc.JavaTime;
 
 import java.io.File;
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -42,20 +40,6 @@ public class TrackStorage {
         });
 
         return result;
-    }
-
-    public static boolean isFlightRecordSkipped(String flightRecordId) {
-        File skippedMarkerFile = new File(storageRootFile, "_skipped/" + flightRecordId.replace(':', '-') + ".txt");
-        return skippedMarkerFile.exists();
-    }
-
-    public static void markFlightRecordSkipped(String flightRecordId) {
-        File skippedMarkerFile = new File(storageRootFile, "_skipped/" + flightRecordId.replace(':', '-') + ".txt");
-        try {
-            IOHelper.saveFile(skippedMarkerFile, "");
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     private static boolean isDate(final String name) {

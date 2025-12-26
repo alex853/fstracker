@@ -1,6 +1,5 @@
 package net.simforge.fstracker3;
 
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapper;
 import net.simforge.commons.misc.JavaTime;
 import net.simforge.fstracker3.dynamodb.DynamoDB;
@@ -26,52 +25,75 @@ public class TrackAnalyzer1AWS {
         System.out.println();
         segments.stream()
                 .filter(segmentInfo -> segmentInfo.isTakeoffLanding() && !segmentInfo.isBouncing())
-                .forEach(s -> {
-                    System.out.println();
-                    System.out.println(s);
-                    System.out.println();
+                .forEach(s -> processSegment(s, segments));
+    }
 
-                    final TrackAnalyzer1.FlightInfo flightInfo = TrackAnalyzer1.recognizeFlight(s, segments);
-                    if (flightInfo == null) {
-                        return;
-                    }
-                    TrackAnalyzer1.printFlightInfo(flightInfo);
+    private static void processSegment(TrackAnalyzer1.SegmentInfo s, List<TrackAnalyzer1.SegmentInfo> segments) {
+        System.out.println();
+        System.out.println(s);
+        System.out.println();
 
-                    final FSLogRecord awsRecord = convertFlightInfoIntoAWSRecord(flightInfo);
+        final TrackAnalyzer1.FlightInfo flightInfo = TrackAnalyzer1.recognizeFlight(s, segments);
+        if (flightInfo == null) {
+            return;
+        }
+        TrackAnalyzer1.printFlightInfo(flightInfo);
 
-                    AmazonDynamoDB amazonDynamoDB = DynamoDB.get();
-                    DynamoDBMapper mapper = new DynamoDBMapper(amazonDynamoDB);
-                    String flightRecordId = awsRecord.getBeginningDT();
-                    FSLogRecord existingAwsRecord = mapper.load(FSLogRecord.class, DynamoDB.getUserId(), flightRecordId);
+        final FSLogRecord ourRecord = convertFlightInfoIntoAWSRecord(flightInfo);
+        final String flightRecordId = ourRecord.getBeginningDT();
 
-                    if (existingAwsRecord != null) {
-                        System.out.println("  <flight record already logged>  ");
-                        return;
-                    }
+        final LocalStorage.Record localRecord = LocalStorage.load(flightRecordId);
+        if (localRecord != null) {
+            switch (localRecord.getStatus()) {
+                case Logged -> System.out.println("  <flight record is locally known as logged>");
+                case Skipped -> System.out.println("  <flight record NOT logged however it was SKIPPED previously>");
+            }
+            return;
+        }
 
-                    if (TrackStorage.isFlightRecordSkipped(flightRecordId)) {
-                        System.out.println("  <flight record NOT logged however it was SKIPPED previously>  ");
-                        return;
-                    }
+        final FSLogRecord storedRecord = loadAwsRecord(flightRecordId);
+        if (storedRecord != null) {
+            LocalStorage.saveAsLogged(flightRecordId);
+            System.out.println("  <flight record is stored in database, loaded and marked locally as logged>");
+            return;
+        }
 
-                    boolean decisionToSkip = false;
-                    boolean decisionToLog = false;
-                    while (!decisionToSkip && !decisionToLog) {
-                        System.out.print("[L]og or [S]kip the flight record: ");
-                        int choice = new Scanner(System.in).nextLine().charAt(0);
-                        decisionToLog = choice == 'l' || choice == 'L';
-                        decisionToSkip = choice == 's' || choice == 'S';
-                    }
+        boolean decisionToSkip = false;
+        boolean decisionToLog = false;
+        while (!decisionToSkip && !decisionToLog) {
+            System.out.print("[L]og or [S]kip the flight record: ");
+            int choice = new Scanner(System.in).nextLine().charAt(0);
+            decisionToLog = choice == 'l' || choice == 'L';
+            decisionToSkip = choice == 's' || choice == 'S';
+        }
 
-                    if (decisionToSkip) {
-                        TrackStorage.markFlightRecordSkipped(flightRecordId);
-                        System.out.println("  !flight record SKIPPED and will be skipped in future!  ");
-                        return;
-                    }
+        if (decisionToSkip) {
+            LocalStorage.saveAsSkipped(flightRecordId);
+            System.out.println("  !flight record SKIPPED and will be skipped in future!  ");
+            return;
+        }
 
-                    mapper.save(awsRecord);
-                    System.out.println("   !flight record just LOGGED!  ");
-                });
+        saveToAws(ourRecord);
+        LocalStorage.saveAsLogged(flightRecordId);
+        System.out.println("   !flight record just LOGGED!  ");
+    }
+
+    private static DynamoDBMapper awsMapper;
+
+    private static void initAwsMapper() {
+        if (awsMapper == null) {
+            awsMapper = new DynamoDBMapper(DynamoDB.get());
+        }
+    }
+
+    private static FSLogRecord loadAwsRecord(final String flightRecordId) {
+        initAwsMapper();
+        return awsMapper.load(FSLogRecord.class, DynamoDB.getUserId(), flightRecordId);
+    }
+
+    private static void saveToAws(final FSLogRecord record) {
+        initAwsMapper();
+        awsMapper.save(record);
     }
 
     private static final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
@@ -106,17 +128,5 @@ public class TrackAnalyzer1AWS {
         record.getFlight().setAircraftRegistration(null);
 
         return record;
-    }
-
-    static int readSingleCharacter() {
-        try {
-            int input = System.in.read();
-            if (input == '\n') {
-                return 0;
-            }
-            return input;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
     }
 }
