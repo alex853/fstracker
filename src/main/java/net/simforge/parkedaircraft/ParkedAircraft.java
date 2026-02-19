@@ -5,9 +5,11 @@ import flightsim.simconnect.config.ConfigurationNotFoundException;
 import javax.swing.*;
 import java.awt.*;
 import java.io.IOException;
+import java.util.Arrays;
 
-// todo ak 5 columns instead of 4 ?
-// todo ak0 'loading' state does not work well
+// todo ak hide at auto-start
+// todo ak1 5 columns instead of 4 ?
+// todo ak1 'loading' state does not work well
 // todo ak1 do not save when aircraft is flying - todo ak1 saving condition
 // todo ak1 save aircraft when aircraft puts parking brakes after landing, and then when engines shut down, in addition to saving on exit from the sim
 // todo ak1 improved look-and-feel
@@ -15,7 +17,6 @@ import java.io.IOException;
 // todo ak1 limit max distance for simple movement
 // todo ak2 another icon
 // todo ak2 rethink statusToRestoreLabel
-// todo ak2 hide at auto-start
 // todo ak2 non-resizable frame
 // todo ak3 simconnect.text experiments
 // todo ak3 somehow set atc id (and store it?)
@@ -29,6 +30,8 @@ import java.io.IOException;
 public class ParkedAircraft {
 
     public static void main(String[] args) throws IOException, ConfigurationNotFoundException {
+        final boolean keepHidden = Arrays.stream(args).anyMatch(s -> s.contains("--hide"));
+
         Logic.get().start();
         SimWorker.get().start();
 
@@ -38,7 +41,7 @@ public class ParkedAircraft {
                 UIManager.put("Button.font", new Font("Verdana", Font.PLAIN, 14));
                 UIManager.put("TextField.font", new Font("Verdana", Font.PLAIN, 14));
 
-                new MainFrame();
+                new MainFrame(keepHidden);
             } catch (Exception e) {
                 e.printStackTrace();
             }

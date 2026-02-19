@@ -43,7 +43,7 @@ public class MainFrame extends JFrame {
     private JLabel parkingStatusLabel;
     private JLabel fuelStatusLabel;
 
-    public MainFrame() throws HeadlessException {
+    public MainFrame(boolean keepHidden) throws HeadlessException {
         setTitle("Parked Aircraft");
         setSize(400, 350);
 
@@ -58,7 +58,9 @@ public class MainFrame extends JFrame {
             }
         });
 
-        setVisible(true);
+        if (!keepHidden) {
+            setVisible(true);
+        }
 
         Timer timer = new Timer(200, e -> updateUi());
         timer.start();
