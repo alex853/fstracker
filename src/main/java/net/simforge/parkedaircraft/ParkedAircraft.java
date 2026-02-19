@@ -7,7 +7,6 @@ import java.awt.*;
 import java.io.IOException;
 import java.util.Arrays;
 
-// todo ak hide at auto-start
 // todo ak1 5 columns instead of 4 ?
 // todo ak1 'loading' state does not work well
 // todo ak1 do not save when aircraft is flying - todo ak1 saving condition
